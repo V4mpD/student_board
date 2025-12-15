@@ -1,7 +1,6 @@
 -- database/init.sql
 
 -- 1. Users Table
--- Now includes academic details to identify their "group"
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT UNIQUE NOT NULL,
@@ -9,17 +8,16 @@ CREATE TABLE IF NOT EXISTS users (
     full_name TEXT,
     
     -- Academic Grouping
-    college TEXT NOT NULL,     -- e.g., "FMI", "Politehnica"
-    study_year INTEGER,        -- e.g., 1, 2, 3
-    series TEXT,               -- e.g., "Series A"
-    group_name TEXT NOT NULL,  -- e.g., "311"
+    college TEXT NOT NULL,
+    study_year INTEGER,
+    series TEXT,
+    group_name TEXT NOT NULL,
     
     -- Permissions
-    is_group_admin BOOLEAN DEFAULT 0 -- 1 if they were the first to join this group
+    is_group_admin BOOLEAN DEFAULT 0
 );
 
--- 2. Class Schedule
--- Now linked to specific groups
+-- 2. Class Schedule Table
 CREATE TABLE IF NOT EXISTS class_schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     course_name TEXT NOT NULL,
@@ -34,10 +32,21 @@ CREATE TABLE IF NOT EXISTS class_schedule (
     has_assignment BOOLEAN DEFAULT 0,
     assignment_details TEXT,
     
-    -- Who is this schedule for?
+    -- Targeting
     target_college TEXT,
-    target_group TEXT, -- If NULL, applies to whole series/year. If set, applies to "311"
+    target_group TEXT,
     
     created_by INTEGER,
     FOREIGN KEY(created_by) REFERENCES users(id)
+);
+
+-- 3. Announcements Table (THIS WAS MISSING)
+CREATE TABLE IF NOT EXISTS announcements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    posted_by INTEGER,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    target_group TEXT, -- e.g., "Year 1", "Series B"
+    FOREIGN KEY(posted_by) REFERENCES users(id)
 );
