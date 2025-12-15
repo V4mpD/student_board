@@ -3,61 +3,64 @@ import cors from 'cors';
 import morgan from 'morgan';
 import {v4 as uuid} from 'uuid';
 
+const express = require('express');
+const Database = require('better-sqlite3');
+const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
+
 const app = express();
+// We use port 5000 to match your previous configuration
+const PORT = process.env.PORT || 5000;
+
+// Middleware
 app.use(cors());
 app.use(express.json());
 
-let todos = [];
+// ----------------------------------------------------
+// DATABASE SETUP
+// ----------------------------------------------------
+// Ensure the database folder exists
+const dbFolder = path.join(__dirname, 'database');
+if (!fs.existsSync(dbFolder)) {
+    fs.mkdirSync(dbFolder);
+}
 
-app.get("/api/todos", (req, res) => {res.json(todos)});
+// Connect to SQLite
+const dbPath = path.join(dbFolder, 'database.db');
+const db = new Database(dbPath, { verbose: console.log });
 
-app.post("/api/todos",
-        (req, res) => {
-            const {title} = req.body;
-            const todo = {
-                id: uuid(),
-                title: title,
-                completed: false,
-                createdAt: Date.now()
-            };
-            todos.push(todo);
-            res.status(201).json(todo);
-        }
-);
+// Initialize Tables (Reads from the init.sql file you created)
+const initSqlPath = path.join(dbFolder, 'init.sql');
+if (fs.existsSync(initSqlPath)) {
+    const initSql = fs.readFileSync(initSqlPath, 'utf-8');
+    db.exec(initSql);
+} else {
+    console.error("ERROR: init.sql not found in database folder!");
+}
 
-app.delete("/api/todos/:id",
-    (req, res) => {
-        const id = req.params;
-        todos = todos.filter((t) => t.id != id);
-        res.status(204).send();
-    }
-);
+// ----------------------------------------------------
+// API ROUTES
+// ----------------------------------------------------
 
-app.listen(5000, () => console.log("App started on port 5000 ..."));
-
-app.post('/api/register', async (req, res) => {
+// 1. REGISTER USER (First user in a group becomes Admin)
+app.post('/api/register', (req, res) => {
     const { username, password, fullName, college, year, series, groupName } = req.body;
 
-    // 1. Check if ANY user already exists in this specific group
-    const checkGroupQuery = db.prepare(`
-        SELECT COUNT(*) as count 
-        FROM users 
-        WHERE college = ? AND group_name = ?
-    `);
-    
-    const result = checkGroupQuery.get(college, groupName);
-    
-    // 2. Determine Role: If count is 0, this user becomes the Admin (is_group_admin = 1)
+    // Check if ANY user already exists in this specific group
+    const checkGroup = db.prepare('SELECT COUNT(*) as count FROM users WHERE college = ? AND group_name = ?');
+    const result = checkGroup.get(college, groupName);
+
+    // If count is 0, this is the first user -> Make them ADMIN
     const isFirstUser = result.count === 0;
 
-    // 3. Insert the new user
     const insertUser = db.prepare(`
         INSERT INTO users (username, password_hash, full_name, college, study_year, series, group_name, is_group_admin)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
-        // Note: In production, hash the password with bcrypt!
+        // In a real app, verify you hash passwords here (e.g., using bcrypt)
         const info = insertUser.run(username, password, fullName, college, year, series, groupName, isFirstUser ? 1 : 0);
         
         res.json({
@@ -65,8 +68,8 @@ app.post('/api/register', async (req, res) => {
             userId: info.lastInsertRowid,
             role: isFirstUser ? 'ADMIN' : 'STUDENT',
             message: isFirstUser 
-                ? "Account created. You are the first user, so you are the Group Admin." 
-                : "Account created. You have joined as a Student."
+                ? "Account created. You are the Group Admin." 
+                : "Account created. You are a Student."
         });
     } catch (err) {
         if (err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
@@ -76,27 +79,56 @@ app.post('/api/register', async (req, res) => {
     }
 });
 
-// API: Grant Admin Rights (Only for existing Admins)
-app.post('/api/promote-user', (req, res) => {
-    const { currentUserId, targetUserId } = req.body;
+// 2. GET SCHEDULE (Supports 'Outlook-style' overrides)
+app.get('/api/schedule', (req, res) => {
+    // We expect query params: ?groupName=311&date=2025-10-12&weekType=odd
+    const { groupName, date, weekType } = req.query; 
 
-    // 1. Verify the requester is actually an admin
-    const requester = db.prepare('SELECT is_group_admin, group_name FROM users WHERE id = ?').get(currentUserId);
+    const query = `
+        SELECT * FROM class_schedule 
+        WHERE target_group = ? 
+        AND (specific_date = ? OR (specific_date IS NULL AND (week_type = 'all' OR week_type = ?)))
+    `;
     
-    if (!requester || requester.is_group_admin !== 1) {
-        return res.status(403).json({ error: "Unauthorized. Only admins can promote users." });
+    try {
+        const schedule = db.prepare(query).all(groupName, date, weekType);
+        res.json(schedule);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
+});
 
-    // 2. Verify the target is in the same group
-    const target = db.prepare('SELECT group_name FROM users WHERE id = ?').get(targetUserId);
+// 3. ADD CLASS (Admin Only)
+app.post('/api/schedule', (req, res) => {
+    const { 
+        course_name, day_of_week, start_time, end_time, location, 
+        week_type, specific_date, has_assignment, assignment_details,
+        target_group, created_by 
+    } = req.body;
 
-    if (requester.group_name !== target.group_name) {
-        return res.status(400).json({ error: "You can only promote users in your own group." });
+    const insert = db.prepare(`
+        INSERT INTO class_schedule (
+            course_name, day_of_week, start_time, end_time, location, 
+            week_type, specific_date, has_assignment, assignment_details,
+            target_group, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    try {
+        const result = insert.run(
+            course_name, day_of_week, start_time, end_time, location, 
+            week_type, specific_date, has_assignment ? 1 : 0, assignment_details,
+            target_group, created_by
+        );
+        res.json({ success: true, id: result.lastInsertRowid });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
+});
 
-    // 3. Update the target user
-    const updateRole = db.prepare('UPDATE users SET is_group_admin = 1 WHERE id = ?');
-    updateRole.run(targetUserId);
-
-    res.json({ success: true, message: "User promoted to Admin." });
+// ----------------------------------------------------
+// START SERVER
+// ----------------------------------------------------
+app.listen(PORT, () => {
+    console.log(`Student Board Server running on port ${PORT}`);
 });
