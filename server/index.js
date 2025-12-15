@@ -113,6 +113,7 @@ app.post('/api/schedule', (req, res) => {
     const { 
         course_name, day_of_week, start_time, end_time, location, 
         week_type, specific_date, has_assignment, assignment_details,
+        is_cancelled, // <--- NEW PARAMETER
         target_group, created_by 
     } = req.body;
 
@@ -120,14 +121,16 @@ app.post('/api/schedule', (req, res) => {
         INSERT INTO class_schedule (
             course_name, day_of_week, start_time, end_time, location, 
             week_type, specific_date, has_assignment, assignment_details,
+            is_cancelled, 
             target_group, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
         const result = insert.run(
             course_name, day_of_week, start_time, end_time, location, 
             week_type, specific_date, has_assignment ? 1 : 0, assignment_details,
+            is_cancelled ? 1 : 0, // <--- SAVE IT
             target_group, created_by
         );
         res.json({ success: true, id: result.lastInsertRowid });

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
     is_group_admin BOOLEAN DEFAULT 0
 );
 
--- 2. Class Schedule Table
+-- 2. Class Schedule Table (UPDATED)
 CREATE TABLE IF NOT EXISTS class_schedule (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     course_name TEXT NOT NULL,
@@ -32,10 +32,12 @@ CREATE TABLE IF NOT EXISTS class_schedule (
     has_assignment BOOLEAN DEFAULT 0,
     assignment_details TEXT,
     
+    -- NEW: Cancellation Flag
+    is_cancelled BOOLEAN DEFAULT 0, 
+
     -- Targeting
     target_college TEXT,
     target_group TEXT,
-    
     created_by INTEGER,
     FOREIGN KEY(created_by) REFERENCES users(id)
 );
