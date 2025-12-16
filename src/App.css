@@ -1,38 +1,150 @@
-.App {
-  text-align: center;
+:root {
+  /* LIGHT MODE */
+  --bg-body: #f4f6f8;
+  --bg-sidebar: #0e1b36;  
+  --bg-card: #ffffff;
+  
+  --text-main: #212529;
+  --text-header: #0e1b36;
+  --text-sidebar: #cfd8dc;
+  --text-muted: #6c757d;
+
+  --accent-color: #a81c22; 
+  --border-color: #dee2e6;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+/* DARK MODE */
+[data-theme='dark'] {
+  --bg-body: #121212;     
+  --bg-sidebar: #000000;  
+  --bg-card: #1e1e1e;     
+
+  --text-main: #e0e0e0;
+  --text-header: #ffffff; 
+  --text-sidebar: #b0bec5;
+  --text-muted: #9e9e9e;
+
+  --accent-color: #d32f2f; 
+  --border-color: #333333;
+
+  /* BOOTSTRAP OVERRIDES */
+  --bs-body-bg: var(--bg-body);
+  --bs-body-color: var(--text-main);
+  --bs-card-bg: var(--bg-card);
+  --bs-border-color: var(--border-color);
+  --bs-card-border-color: var(--border-color);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* --- GLOBAL --- */
+body, html, #root {
+  height: 100%;
+  margin: 0;
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  transition: background-color 0.3s, color 0.3s;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-header);
+}
+
+/* --- SIDEBAR STYLES --- */
+.sidebar {
+  width: 260px;
+  background-color: var(--bg-sidebar);
+  color: var(--text-sidebar);
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  height: 100vh;
+  position: fixed; 
+  z-index: 1000;
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center; 
   justify-content: center;
-  font-size: calc(10px + 2vmin);
+  margin-bottom: 2rem;
+}
+
+.sidebar a {
+  color: var(--text-sidebar);
+  text-decoration: none;
+  padding: 12px 15px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.sidebar a:hover {
+  background-color: rgba(255, 255, 255, 0.1);
   color: white;
+  transform: translateX(5px);
 }
 
-.App-link {
-  color: #61dafb;
+.sidebar a.active {
+  background-color: var(--accent-color);
+  color: white;
+  box-shadow: 0 4px 10px rgba(168, 28, 34, 0.4);
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* --- CONTENT AREA --- */
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.content-area {
+  margin-left: 260px; 
+  width: calc(100% - 260px);
+  padding: 0; 
+  display: flex;
+  flex-direction: column;
+}
+
+/* Helper to add padding back to NON-chat pages */
+.page-padding {
+  padding: 30px;
+}
+
+/* --- COMPONENTS --- */
+.card {
+  background-color: var(--bg-card) !important;
+  border: 1px solid var(--border-color);
+  border-radius: 15px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.card-body strong {
+  color: var(--accent-color) !important;
+}
+
+/* Rounded, separated list items for Chat */
+.custom-list-item {
+  border: none;
+  border-radius: 12px !important; /* Forces curves */
+  margin-bottom: 8px; /* Space between items */
+  background-color: var(--bg-card);
+  color: var(--text-main);
+  transition: transform 0.2s;
+}
+
+.custom-list-item:hover {
+  transform: scale(1.02);
+  background-color: var(--bg-body);
+}
+
+.chat-input {
+  background-color: var(--bg-body);
+  border: 1px solid var(--border-color);
+  color: var(--text-main);
+  border-radius: 30px;
+}
+
+/* Ensure input text is visible in dark mode */
+.chat-input::placeholder {
+  color: var(--text-muted);
 }
