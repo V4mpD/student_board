@@ -4,7 +4,9 @@ import Sidebar from './components/Sidebar';
 import Chat from './pages/Chat';
 import Announcements from './pages/Announcements';
 import Calendar from './pages/Calendar';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './App.css';
+
 
 function App() {
   // Check local storage for theme preference, default to false (Light Mode)

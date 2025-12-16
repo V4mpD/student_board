@@ -1,3 +1,5 @@
+/* @import 'react-big-calendar/lib/sass/styles'; */
+
 :root {
   /* LIGHT MODE */
   --bg-body: #f4f6f8;
@@ -148,3 +150,61 @@ h1, h2, h3, h4, h5, h6 {
 .chat-input::placeholder {
   color: var(--text-muted);
 }
+
+
+/* --- REACT BIG CALENDAR DARK MODE OVERRIDES --- */
+
+/* 1. Base Text & Backgrounds */
+.rbc-calendar {
+  color: var(--text-main);
+}
+
+.rbc-off-range-bg {
+  background-color: var(--bg-sidebar) !important;
+  opacity: 0.2;
+}
+
+
+.rbc-today {
+  background-color: rgba(168, 28, 34, 0.1) !important; /* Low opacity Red */
+}
+
+/* 3. Borders */
+.rbc-header, 
+.rbc-month-view, 
+.rbc-day-bg, 
+.rbc-month-row, 
+.rbc-time-view, 
+.rbc-time-header-content,
+.rbc-time-content, 
+.rbc-timeslot-group, 
+.rbc-time-gutter, 
+.rbc-header + .rbc-header,
+.rbc-day-slot .rbc-time-slot {
+  border-color: var(--border-color) !important;
+}
+
+/* 4. Toolbar Buttons (Navigation) */
+.rbc-toolbar button {
+  color: var(--text-main) !important;
+  border: 1px solid var(--border-color) !important;
+}
+
+.rbc-toolbar button:hover {
+  background-color: var(--bg-sidebar) !important;
+  color: white !important;
+}
+
+.rbc-toolbar button.rbc-active {
+  background-color: var(--accent-color) !important;
+  color: white !important;
+  border-color: var(--accent-color) !important;
+  box-shadow: none !important;
+}
+
+/* 5. Month View Specifics */
+.rbc-date-cell {
+  padding-right: 10px;
+  font-weight: bold;
+}
+
