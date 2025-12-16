@@ -44,7 +44,7 @@ const Sidebar = ({ isDarkMode, toggleTheme }) => {
           <a href="https://teams.microsoft.com" target="_blank" rel="noopener noreferrer">
             <FaMicrosoft className="me-3" style={{color: '#7986cb'}}/> MS Teams
           </a>
-          <a href="#" target="_blank" rel="noopener noreferrer">
+          <a href="#https://solaris.rau.ro/as/dashboard" target="_blank" rel="noopener noreferrer">
             <FaUniversity className="me-3" style={{color: '#ffb74d'}}/> Smartums
           </a>
         </div>

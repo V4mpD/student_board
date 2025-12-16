@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Loading from '../components/Loading';
 
 const Chat = () => {
     
@@ -29,14 +30,8 @@ const Chat = () => {
     }, []);
 
     if (isLoading) {
-        return (
-        <div className="d-flex justify-content-center align-items-center h-100">
-            <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Loading...</span>
-            </div>
-        </div>
-        );
-}
+        return (<Loading />);
+    }
 
     return (
         <div className="d-flex h-100 w-100"> 
