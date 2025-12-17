@@ -6,16 +6,15 @@ import Announcements from './pages/Announcements';
 import Calendar from './pages/Calendar';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import './App.css';
-import Loading from './components/Loading';
-import { set } from 'date-fns';
 
 
 
 // --- LAYOUT COMPONENT ---
-const Layout = ({ children }) => {
+const Layout = ({ children, isDarkMode, toggleTheme }) => {
   const { user, loading } = useAuth();
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
@@ -32,10 +31,9 @@ const Layout = ({ children }) => {
 
   return (
     <div className='app-container'>
-      {/* Hide the sidebar cause crashes. Learned the hard way. */}
-      {!isAuthPage && <Sidebar />}
+      {!isAuthPage && <Sidebar isDarkMode={isDarkMode} toggleTheme={toggleTheme} />}
 
-      <div className='{!isAuthPage ? "content-area" : "w-100"}'>
+      <div className={!isAuthPage ? "content-area" : "w-100"}>
         {children}
       </div>
     </div>
@@ -58,19 +56,17 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <Layout>
+        <Layout isDarkMode={isDarkMode} toggleTheme={toggleTheme}>
           <Routes>
             <Route path='/login' element={<Login />} />
             <Route path='/register' element={<Register />} />
 
             {/* The rest of the fish stew */}
-            <Route path='/' element={<Chat />} />
+            <Route path='/' element={<Dashboard />} />
+            <Route path='/chat' element={<Chat />} />
             <Route path='/announcements' element={<Announcements />} />
             <Route path='/calendar' element={<Calendar />} />
 
-            {/* Will do later after dashboard is finished */}
-            {/* <Route path='/' element={<Dashboard />} />
-            <Route path='/chat' element={<Chat />} /> */}
           </Routes>
         </Layout>
       </Router>

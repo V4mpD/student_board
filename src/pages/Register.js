@@ -24,6 +24,14 @@ const Register = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError('');
+
+        // Pass check
+        if (formData.password.length < 6) {
+            setError('Password must be at least 6 characters long');
+            return;
+        }
+
 
         try {
             const response = await fetch('http://localhost:5000/api/register', {
@@ -45,7 +53,9 @@ const Register = () => {
                 fullName: formData.fullName,
                 role: data.role,
                 groupName: data.groupName,
-                college: formData.college
+                college: formData.college,
+                year: formData.year,
+                series: formData.series
             };
 
             login(newUser);

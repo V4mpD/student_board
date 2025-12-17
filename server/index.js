@@ -1,3 +1,18 @@
+/*
+Quick info:
+Trebuie sa modific query-ul pentru annoucements
+Acum query-ul cere year si series dar login-ul nu le returneaza
+Deci avem ca optiuni:
+1. Adaugam year si series in login response (asta daca vreti filtre pentru announcements mai specifice)
+2. Modificam query-ul din annoucements sa filtreze doar dupa college (deci toate anunturile o sa fie ori globale ori per facultate)
+ 
+Eu unul am mers pe 2 momentan si putem schimba dupa daca vrem anunturi mai specifice.
+OLD:
+162: const { college, year, series } = req.query; 
+169: WHERE target_group IS NULL OR target_group = ? OR target_group = ?
+175: const posts = db.prepare(query).all(`Year ${year}`, series);
+*/
+
 const express = require('express');
 const Database = require('better-sqlite3');
 const cors = require('cors');
@@ -144,20 +159,20 @@ app.post('/api/schedule', (req, res) => {
 
 // Get announcements (Filtered by filtering logic from Milestone 1)
 app.get('/api/announcements', (req, res) => {
-    const { college, year, series } = req.query;
+    const { college } = req.query;   // Am scos aici year si series
     
     // Simple filter: Get global announcements OR specific ones
     const query = `
         SELECT announcements.*, users.full_name as author_name 
         FROM announcements 
         JOIN users ON announcements.posted_by = users.id
-        WHERE target_group IS NULL OR target_group = ? OR target_group = ?
+        WHERE target_group IS NULL OR target_group = ?
         ORDER BY created_at DESC
     `;
 
     try {
         // Broad search: Matches "Year 1" or specific series tags
-        const posts = db.prepare(query).all(`Year ${year}`, series);
+        const posts = db.prepare(query).all(college);
         res.json(posts);
     } catch (err) {
         res.status(500).json({ error: err.message });

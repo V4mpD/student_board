@@ -3,8 +3,10 @@ import { NavLink } from 'react-router-dom';
 import { 
   FaComments, FaBullhorn, FaCalendarAlt, 
   FaUniversity, FaMicrosoft, FaGlobeEurope, 
-  FaMoon, FaSun 
+  FaMoon, FaSun, 
+  FaThLarge
 } from 'react-icons/fa';
+import { Nav } from 'react-bootstrap';
 
 const Sidebar = ({ isDarkMode, toggleTheme }) => {
   return (
@@ -20,8 +22,10 @@ const Sidebar = ({ isDarkMode, toggleTheme }) => {
       {/* Main Navigation */}
       <nav className="d-flex flex-column">
         <small className="text-uppercase text-white-50 ms-3 mb-2 fw-bold" style={{fontSize: '0.7rem'}}>Menu</small>
-        
         <NavLink to="/" className={({ isActive }) => (isActive ? "active" : "")}>
+          <FaThLarge className="me-3"/> Dashboard
+        </NavLink>
+        <NavLink to="/chat" className={({ isActive }) => (isActive ? "active" : "")}>
           <FaComments className="me-3"/> Groups
         </NavLink>
         <NavLink to="/announcements" className={({ isActive }) => (isActive ? "active" : "")}>

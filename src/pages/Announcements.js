@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import Loading from '../components/Loading';
+import { useAuth } from '../context/AuthContext';
 
 const Announcements = () => {
+    const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);  // Debugging
 
     useEffect(() => {
 
+        if(!user) return; // Safety check
+
         const fetchAnnouncements = async () => {
             try {
-                // Hardcoded shit
                 const userParams = new URLSearchParams({
-                    college: 'FIM',
-                    year: '2',
-                    series: '621'
+                    college: user.college,
                 });
-
                 // Hardcoding to bypass 404
                 const res = await fetch(`http://localhost:5000/api/announcements?${userParams}`);
 
