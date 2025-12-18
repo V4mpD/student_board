@@ -40,7 +40,7 @@ const Login = () => {
     return (
         <div className="d-flex align-items-center justify-content-center vh-100" style={{backgroundColor: 'var(--bg-body)'}}>
             <div className="card p-4 shadow-sm" style={{maxWidth: '400px', width: '100%'}}>
-                <h2 className="text-center mb-4 fw-bold" style={{color: 'var(--text-header)'}}>WELCOME BUDDY! *will change later*</h2>
+                <h2 className="text-center mb-4 fw-bold" style={{color: 'var(--text-header)'}}>Welcome!</h2>
 
                 {error && <div className="alert alert-danger">{error}</div>}
 
