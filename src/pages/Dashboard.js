@@ -78,7 +78,7 @@ const Dashboard = () => {
 
 
                 // Fetch news
-                const newsRes = await fetch(`http://localhost:5000/api/announcements?college=${encodeURIComponent(user.college)}`);
+                const newsRes = await fetch(`http://localhost:5000/api/announcements?faculty=${encodeURIComponent(user.faculty)}`);
                 const newsData = await newsRes.json();
                 setLatestNews(newsData.slice(0, 2)); // Get latest 2 news
         

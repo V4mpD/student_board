@@ -12,7 +12,7 @@ const Register = () => {
         username: "",
         password: "",
         fullName: "",
-        college: "",
+        faculty: "",
         year: "",
         series: "",
         groupName: ""
@@ -53,7 +53,7 @@ const Register = () => {
                 fullName: formData.fullName,
                 role: data.role,
                 groupName: data.groupName,
-                college: formData.college,
+                faculty: formData.faculty,
                 year: formData.year,
                 series: formData.series
             };
@@ -99,7 +99,7 @@ const Register = () => {
           <div className="row">
             <div className="col-md-6 mb-3">
               <label className="form-label">Faculty</label>
-              <select name="college" className="form-select" onChange={handleChange} value={formData.college}>
+              <select name="faculty" className="form-select" onChange={handleChange} value={formData.faculty}>
                 <option value="AI">Afaceri Internaționale</option>
                 <option value="DREPT">Drept</option>
                 <option value="FC">Finanțe și Contabilitate</option>

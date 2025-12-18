@@ -37,19 +37,19 @@ if (fs.existsSync(initSqlPath)) {
 
 // Register (First user in group becomes Admin)
 app.post('/api/register', (req, res) => {
-    const { username, password, fullName, college, year, series, groupName } = req.body;
+    const { username, password, fullName, faculty, year, series, groupName } = req.body;
 
-    const checkGroup = db.prepare('SELECT COUNT(*) as count FROM users WHERE college = ? AND group_name = ?');
-    const result = checkGroup.get(college, groupName);
+    const checkGroup = db.prepare('SELECT COUNT(*) as count FROM users WHERE faculty = ? AND group_name = ?');
+    const result = checkGroup.get(faculty, groupName);
     const isFirstUser = result.count === 0;
 
     const insertUser = db.prepare(`
-        INSERT INTO users (username, password_hash, full_name, college, study_year, series, group_name, is_group_admin)
+        INSERT INTO users (username, password_hash, full_name, faculty, study_year, series, group_name, is_group_admin)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     try {
-        const info = insertUser.run(username, password, fullName, college, year, series, groupName, isFirstUser ? 1 : 0);
+        const info = insertUser.run(username, password, fullName, faculty, year, series, groupName, isFirstUser ? 1 : 0);
         res.json({
             success: true,
             userId: info.lastInsertRowid,
@@ -79,7 +79,7 @@ app.post('/api/login', (req, res) => {
                 id: user.id,
                 username: user.username,
                 role: user.is_group_admin ? 'ADMIN' : 'STUDENT',
-                college: user.college,
+                faculty: user.faculty,
                 groupName: user.group_name
             }
         });
@@ -142,7 +142,7 @@ app.post('/api/schedule', (req, res) => {
 // === 3. ANNOUNCEMENTS (New!) ===
 
 app.get('/api/announcements', (req, res) => {
-    const { college } = req.query;   
+    const { faculty } = req.query;   
     
     // Simple filter: Get global announcements OR specific ones
     const query = `
@@ -154,7 +154,7 @@ app.get('/api/announcements', (req, res) => {
     `;
 
     try {
-        const posts = db.prepare(query).all(college);
+        const posts = db.prepare(query).all(faculty);
         res.json(posts);
     } catch (err) {
         res.status(500).json({ error: err.message });

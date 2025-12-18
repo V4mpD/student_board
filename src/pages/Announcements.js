@@ -15,7 +15,7 @@ const Announcements = () => {
         const fetchAnnouncements = async () => {
             try {
                 const userParams = new URLSearchParams({
-                    college: user.college,
+                    faculty: user.faculty,
                 });
                 // Hardcoding to bypass 404
                 const res = await fetch(`http://localhost:5000/api/announcements?${userParams}`);
