@@ -1,18 +1,3 @@
-/*
-Quick info:
-Trebuie sa modific query-ul pentru annoucements
-Acum query-ul cere year si series dar login-ul nu le returneaza
-Deci avem ca optiuni:
-1. Adaugam year si series in login response (asta daca vreti filtre pentru announcements mai specifice)
-2. Modificam query-ul din annoucements sa filtreze doar dupa college (deci toate anunturile o sa fie ori globale ori per facultate)
- 
-Eu unul am mers pe 2 momentan si putem schimba dupa daca vrem anunturi mai specifice.
-OLD:
-162: const { college, year, series } = req.query; 
-169: WHERE target_group IS NULL OR target_group = ? OR target_group = ?
-175: const posts = db.prepare(query).all(`Year ${year}`, series);
-*/
-
 const express = require('express');
 const Database = require('better-sqlite3');
 const cors = require('cors');
@@ -107,17 +92,17 @@ app.post('/api/login', (req, res) => {
 // === 2. CLASS SCHEDULE ===
 
 app.get('/api/schedule', (req, res) => {
-    const { groupName, date, weekType } = req.query; 
+    const { groupName, weekType } = req.query; 
 
     // Logic: Get items that match the group AND (are specific overrides OR are recurring weekly items)
     const query = `
         SELECT * FROM class_schedule 
         WHERE target_group = ? 
-        AND (specific_date = ? OR (specific_date IS NULL AND (week_type = 'all' OR week_type = ?)))
+        AND (specific_date IS NOT NULL OR (week_type = 'all' OR week_type = ?))
     `;
     
     try {
-        const schedule = db.prepare(query).all(groupName, date, weekType);
+        const schedule = db.prepare(query).all(groupName, weekType);
         res.json(schedule);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -128,7 +113,7 @@ app.post('/api/schedule', (req, res) => {
     const { 
         course_name, day_of_week, start_time, end_time, location, 
         week_type, specific_date, has_assignment, assignment_details,
-        is_cancelled, // <--- NEW PARAMETER
+        is_cancelled, 
         target_group, created_by 
     } = req.body;
 
@@ -136,8 +121,7 @@ app.post('/api/schedule', (req, res) => {
         INSERT INTO class_schedule (
             course_name, day_of_week, start_time, end_time, location, 
             week_type, specific_date, has_assignment, assignment_details,
-            is_cancelled, 
-            target_group, created_by
+            is_cancelled, target_group, created_by
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
@@ -145,7 +129,7 @@ app.post('/api/schedule', (req, res) => {
         const result = insert.run(
             course_name, day_of_week, start_time, end_time, location, 
             week_type, specific_date, has_assignment ? 1 : 0, assignment_details,
-            is_cancelled ? 1 : 0, // <--- SAVE IT
+            is_cancelled ? 1 : 0, 
             target_group, created_by
         );
         res.json({ success: true, id: result.lastInsertRowid });
@@ -157,9 +141,8 @@ app.post('/api/schedule', (req, res) => {
 
 // === 3. ANNOUNCEMENTS (New!) ===
 
-// Get announcements (Filtered by filtering logic from Milestone 1)
 app.get('/api/announcements', (req, res) => {
-    const { college } = req.query;   // Am scos aici year si series
+    const { college } = req.query;   
     
     // Simple filter: Get global announcements OR specific ones
     const query = `
@@ -171,7 +154,6 @@ app.get('/api/announcements', (req, res) => {
     `;
 
     try {
-        // Broad search: Matches "Year 1" or specific series tags
         const posts = db.prepare(query).all(college);
         res.json(posts);
     } catch (err) {
@@ -189,6 +171,69 @@ app.post('/api/announcements', (req, res) => {
 
     try {
         const result = insert.run(title, content, posted_by, target_group);
+        res.json({ success: true, id: result.lastInsertRowid });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === 4. CHAT ===
+
+app.get('/api/chat', (req, res) => {
+    const { scope, target } = req.query;
+    const query = `
+        SELECT * FROM chat_messages 
+        WHERE scope = ? AND target = ? 
+        ORDER BY created_at 
+        ASC LIMIT 100`
+    
+    try {
+        const messages = db.prepare(query).all(scope, target);
+        res.json(messages);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/chat', (req, res) => {
+    const { sender_id, sender_name, content, scope, target } = req.body;
+    const insert = db.prepare(`
+        INSERT INTO chat_messages (sender_id, sender_name, content, scope, target) 
+        VALUES (?, ?, ?, ?, ?)`
+    );
+
+    try {
+        const result = insert.run(sender_id, sender_name, content, scope, target);
+        res.json({ success: true, id: result.lastInsertRowid });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+    
+});
+
+// 5. ASSIGNMENTS / DEADLINES (NEW & SEPARATE)
+app.get('/api/deadlines', (req, res) => {
+    const { groupName } = req.query;
+    // Fetches pure assignments, sorted by due date
+    const query = `
+        SELECT * FROM assignments 
+        WHERE target_group = ? 
+        AND due_date >= datetime('now')
+        ORDER BY due_date ASC
+    `;
+    res.json(db.prepare(query).all(groupName));
+});
+
+app.post('/api/assignments', (req, res) => {
+    const { course_name, title, description, due_date, target_group, created_by } = req.body;
+    
+    const insert = db.prepare(`
+        INSERT INTO assignments (course_name, title, description, due_date, target_group, created_by)
+        VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    
+    try {
+        const result = insert.run(course_name, title, description, due_date, target_group, created_by);
         res.json({ success: true, id: result.lastInsertRowid });
     } catch (err) {
         res.status(500).json({ error: err.message });
