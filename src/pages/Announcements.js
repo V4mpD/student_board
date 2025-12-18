@@ -1,84 +1,57 @@
 import React, { useState, useEffect } from 'react';
-import Loading from '../components/Loading';
 import { useAuth } from '../context/AuthContext';
+import { FaPlus } from 'react-icons/fa';
+import AddAnnouncementModal from '../components/AddAnnouncementModal'; // Import the new component
+import Loading from '../components/Loading';
 
 const Announcements = () => {
     const { user } = useAuth();
     const [posts, setPosts] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState(null);  // Debugging
+    const [showModal, setShowModal] = useState(false); // State for modal
+
+    // Function to fetch data (we pass this to the modal so it can refresh the list)
+    const fetchAnnouncements = async () => {
+        setIsLoading(true);
+        try {
+            const userParams = new URLSearchParams({ faculty: user.faculty });
+            const response = await fetch(`http://localhost:5000/api/announcements?${userParams}`);
+            const data = await response.json();
+
+            const formattedData = data.map(post => ({
+                id: post.id,
+                title: post.title,
+                content: post.content,
+                author: post.author_name || 'Admin',
+                date: new Date(post.created_at).toLocaleDateString('en-GB', { 
+                    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false 
+                }),
+                priority: post.title.toLowerCase().includes('examen') ? 'High' : 'Medium'
+            }));
+            setPosts(formattedData);
+        } catch (err) {
+            console.error("Fetch error:", err);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+
+
 
     useEffect(() => {
-
-        if(!user) return; // Safety check
-
-        const fetchAnnouncements = async () => {
-            try {
-                const userParams = new URLSearchParams({
-                    faculty: user.faculty,
-                });
-                // Hardcoding to bypass 404
-                const res = await fetch(`http://localhost:5000/api/announcements?${userParams}`);
-
-                if (!res.ok) {
-                    throw new Error(`Server error YAY!: ${res.status}`);
-                }
-
-                const data = await res.json();
-
-                // Formatting some stuff
-                const formattedData = data.map(post => ({
-                    id: post.id,
-                    title: post.title,
-                    content: post.content,
-                    author: post.author_name || 'Admin',
-                    date: new Date(post.created_at).toLocaleDateString('en-GB', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        hour12: false // 24-hour format F*** US style
-                    }),
-
-                    // Priority logic WIP?!?!?!?
-                    priority: post.title.toLowerCase().includes('important') ? 'High' : 'Normal',
-                }));
-
-                setPosts(formattedData);
-            } catch (err) {
-                console.error('Error fetching announcements:', err);
-                setError(err.message);  // Debugging
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchAnnouncements();
+        if (user) fetchAnnouncements();
     }, [user]);
 
-    // ERROR STATE
-    if (error) {
-        return (
-            <div className='container py-4'>
-                <h2 className='mb-4'>📢 Anunturi</h2>
-                <div className='alert alert-danger' role='alert'>{error}</div>
-            </div>
-        )
-    }
-
-    // LOADING STATE
-    if (isLoading) {
-        return (<Loading />);
-    }
-    
-
     return (
-        <div className='container py-4'>
-            <h2 className='mb-4'>📢 Anunturi</h2>
+        <div className='container page-padding position-relative' style={{ minHeight: '100vh' }}>
+            <h2 className='mb-4'>📢 Campus Board</h2>
+            
             <div className='row'>
                 {posts.length === 0 ? (
-                    <p className='text-muted'>Nu exista anunturi disponibile.</p>
+                     <div className="text-center py-5">
+                        <p className="fs-5" style={{ color: 'var(--text-muted)' }}>No announcements found.</p>
+                     </div>
                 ) : (
                     posts.map(post => (
                         <div key={post.id} className='col-12 mb-3'>
@@ -94,10 +67,37 @@ const Announcements = () => {
                                 </div>
                             </div>
                         </div>
-                )))}
+                    ))
+                )}
             </div>
+
+            {/* ADMIN ONLY: Floating Action Button */}
+            {user?.role === 'ADMIN' && (
+                <>
+                    <button 
+                        onClick={() => setShowModal(true)}
+                        className="btn btn-primary rounded-circle shadow-lg d-flex align-items-center justify-content-center"
+                        style={{ 
+                            position: 'fixed', 
+                            bottom: '30px', 
+                            right: '30px', 
+                            width: '60px', 
+                            height: '60px',
+                            zIndex: 100
+                        }}
+                    >
+                        <FaPlus size={24} color="white"/>
+                    </button>
+
+                    <AddAnnouncementModal 
+                        show={showModal} 
+                        handleClose={() => setShowModal(false)} 
+                        refreshNews={fetchAnnouncements} 
+                    />
+                </>
+            )}
         </div>
-    )
+    );
 }
 
 export default Announcements;
