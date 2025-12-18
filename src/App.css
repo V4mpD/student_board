@@ -3,6 +3,9 @@
 :root {
   /* LIGHT MODE */
   --bg-body: #f4f6f8;
+  --bg-gradient-start: #E0EAFC;
+  --bg-gradient-end: #CFDEF3;
+
   --bg-sidebar: #0e1b36;  
   --bg-card: #ffffff;
   
@@ -20,7 +23,10 @@
 
 /* DARK MODE */
 [data-theme='dark'] {
-  --bg-body: #121212;     
+  --bg-body: #121212;
+  --bg-gradient-start: #080B35;
+  --bg-gradient-end: #152A5D;
+
   --bg-sidebar: #000000;  
   --bg-card: #1e1e1e;     
 
@@ -60,9 +66,14 @@
 body, html, #root {
   height: 100%;
   margin: 0;
-  background-color: var(--bg-body);
   color: var(--text-main);
-  transition: background-color 0.3s, color 0.3s;
+  
+  /* Gradient */
+  background: radial-gradient(circle at top left, var(--bg-gradient-start), var(--bg-gradient-end));
+  background-attachment: fixed; /* Keeps gradient steady while scrolling */
+  background-size: cover;
+  
+  transition: background 0.3s, color 0.3s;
 }
 
 h1, h2, h3, h4, h5, h6 {

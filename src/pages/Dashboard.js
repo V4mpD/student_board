@@ -126,7 +126,7 @@ const Dashboard = () => {
             className="card h-100 border-0 shadow-sm text-center p-3 text-white" 
             style={{ 
               /* NEW GRADIENT */
-              background: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)' 
+              background: 'linear-gradient(135deg, #43c6ac 0%, #f8ffae 100%)' 
             }}
           >
             {/* Centered Flex Container */}
