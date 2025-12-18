@@ -55,7 +55,7 @@ const Announcements = () => {
         };
 
         fetchAnnouncements();
-    }, []);
+    }, [user]);
 
     // ERROR STATE
     if (error) {

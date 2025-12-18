@@ -63,7 +63,7 @@ const Sidebar = ({ isDarkMode, toggleTheme }) => {
           <a href="https://teams.microsoft.com" target="_blank" rel="noopener noreferrer">
             <FaMicrosoft className="me-3" style={{color: '#7986cb'}}/> MS Teams
           </a>
-          <a href="#" target="_blank" rel="noopener noreferrer">
+          <a href="https://solaris.rau.ro" target="_blank" rel="noopener noreferrer">
             <FaUniversity className="me-3" style={{color: '#ffb74d'}}/> Smartums
           </a>
         </div>
@@ -84,17 +84,17 @@ const Sidebar = ({ isDarkMode, toggleTheme }) => {
                 width: '100%', 
                 backgroundColor: 'var(--bg-card)', 
                 zIndex: 1050,
-                opacity: 0.95, /* 5-10% Transparency */
-                backdropFilter: 'blur(5px)', /* Glass effect over Quick Links */
+                // opacity: 0.95, /* 5-10% Transparency */
+                // backdropFilter: 'blur(5px)', /* Glass effect over Quick Links */
                 animation: 'fadeIn 0.2s ease-out'
               }}
             >
                {/* Menu Items */}
                <button className="btn btn-sm text-start w-100 mb-1 d-flex align-items-center" style={{ color: 'var(--text-main)' }}>
-                  <FaUser className="me-2 text-muted"/> Profile
+                  <FaUser className="me-2" style={{color: 'var(--icons-color)'}}/> Profile
                </button>
                <button className="btn btn-sm text-start w-100 mb-2 d-flex align-items-center" style={{ color: 'var(--text-main)' }}>
-                  <FaCog className="me-2 text-muted"/> Settings
+                  <FaCog className="me-2" style={{color: 'var(--icons-color)'}}/> Settings
                </button>
 
                <hr className="my-1" style={{ borderColor: 'var(--border-color)' }}/>
@@ -104,8 +104,8 @@ const Sidebar = ({ isDarkMode, toggleTheme }) => {
                   className="btn btn-sm text-start w-100 mb-1 d-flex align-items-center justify-content-between"
                   style={{ color: 'var(--text-main)' }}
                >
-                  <span className="d-flex align-items-center"><FaMoon className="me-2 text-muted"/> Dark Mode</span>
-                  {isDarkMode ? <FaSun className="text-warning"/> : <FaMoon className="text-secondary"/>}
+                  <span className="d-flex align-items-center">{isDarkMode ? <FaSun className="text-warning me-2"/> : <FaMoon className="text-secondary me-2"/>} Dark Mode</span>
+                  
                </button>
 
                <hr className="my-1" style={{ borderColor: 'var(--border-color)' }}/>

@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { id } from "date-fns/locale";
 
 const Register = () => {
     const navigate = useNavigate();
@@ -13,8 +12,8 @@ const Register = () => {
         password: "",
         fullName: "",
         faculty: "",
-        year: "",
-        series: "",
+        year: "1",
+        series: "1",
         groupName: ""
     });
 
@@ -25,6 +24,10 @@ const Register = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
+
+        // Validation checks
+        if (!formData.faculty) return setError('Please select a faculty');
+        if (!formData.groupName) return setError('Please enter your group name');
 
         // Pass check
         if (formData.password.length < 6) {
@@ -85,7 +88,7 @@ const Register = () => {
                <input name="username" className="form-control" onChange={handleChange} required />
             </div>
             <div className="col-md-6 mb-3">
-               <label className="form-label">Password :3</label>
+               <label className="form-label">Password</label>
                <input type="password" name="password" className="form-control" onChange={handleChange} required />
             </div>
           </div>
@@ -99,7 +102,14 @@ const Register = () => {
           <div className="row">
             <div className="col-md-6 mb-3">
               <label className="form-label">Faculty</label>
-              <select name="faculty" className="form-select" onChange={handleChange} value={formData.faculty}>
+              <select 
+                name="faculty" 
+                className="form-select" 
+                onChange={handleChange} 
+                value={formData.faculty}
+                required
+                >
+                <option value="" disabled>Select Faculty</option>
                 <option value="AI">Afaceri Internaționale</option>
                 <option value="DREPT">Drept</option>
                 <option value="FC">Finanțe și Contabilitate</option>

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FaClock, FaCalendarDay, FaBullhorn, FaPlay, FaPause, FaRedo } from 'react-icons/fa';
-import { set } from 'date-fns';
+import { FaClock, FaCalendarDay, FaPlay, FaPause, FaRedo } from 'react-icons/fa';
 import Loading from '../components/Loading';
 
 const Dashboard = () => {
@@ -123,32 +122,43 @@ const Dashboard = () => {
 
         {/* WIDGET 2: FOCUS TIMER (Small Top-Right) */}
         <div className="col-md-4">
-          <div className="card h-100 border-0 shadow-sm text-center p-3">
-            <h5 className="text-muted mb-3">⚡ Focus Zone</h5>
-            <div className="display-4 fw-bold mb-3" style={{ fontFamily: 'monospace' }}>
-              {formatTime(timerLeft)}
-            </div>
-            <div className="d-flex justify-content-center gap-2">
-              <button 
-                className={`btn ${isTimerActive ? 'btn-warning' : 'btn-success'} rounded-pill px-4`}
-                onClick={() => setIsTimerActive(!isTimerActive)}
-              >
-                {isTimerActive ? <><FaPause className="me-2"/> Pause</> : <><FaPlay className="me-2"/> Start</>}
-              </button>
-              <button 
-                className="btn btn-outline-secondary rounded-circle"
-                onClick={() => { setIsTimerActive(false); setTimerLeft(25 * 60); }}
-              >
-                <FaRedo />
-              </button>
+          <div 
+            className="card h-100 border-0 shadow-sm text-center p-3 text-white" 
+            style={{ 
+              /* NEW GRADIENT */
+              background: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)' 
+            }}
+          >
+            {/* Centered Flex Container */}
+            <div className="d-flex flex-column align-items-center justify-content-center h-100">
+                <h5 className="mb-3" style={{ opacity: 0.9 }}>⚡ Focus Zone ⚡</h5>
+                <div className="display-4 fw-bold mb-3" style={{ fontFamily: 'monospace' }}>
+                  {formatTime(timerLeft)}
+                </div>
+                <div className="d-flex justify-content-center gap-2">
+                  {/* Buttons with white borders for contrast */}
+                  <button 
+                    className={`btn ${isTimerActive ? 'btn-light text-danger' : 'btn-outline-light'} rounded-pill px-4`}
+                    onClick={() => setIsTimerActive(!isTimerActive)}
+                  >
+                    {isTimerActive ? <><FaPause className="me-2"/> Pause</> : <><FaPlay className="me-2"/> Start</>}
+                  </button>
+                  <button 
+                    className="btn btn-outline-light rounded-circle"
+                    onClick={() => { setIsTimerActive(false); setTimerLeft(25 * 60); }}
+                  >
+                    <FaRedo />
+                  </button>
+                </div>
             </div>
           </div>
         </div>
 
+
         {/* WIDGET 3: UP NEXT (Schedule) */}
         <div className="col-md-6 col-lg-7">
           <div className="card h-100 shadow-sm">
-            <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center mt-2 mx-2">
+            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2">
               <h5 className="mb-0 fw-bold">📅 Today's Schedule</h5>
               <Link to="/calendar" className="text-decoration-none small">View Full Calendar →</Link>
             </div>
@@ -178,7 +188,7 @@ const Dashboard = () => {
         {/* WIDGET 4: NEWS (Announcements) */}
         <div className="col-md-6 col-lg-5">
           <div className="card h-100 shadow-sm">
-            <div className="card-header bg-white border-0 d-flex justify-content-between align-items-center mt-2 mx-2">
+            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2">
               <h5 className="mb-0 fw-bold">📢 Latest News</h5>
               <Link to="/announcements" className="text-decoration-none small">All News →</Link>
             </div>

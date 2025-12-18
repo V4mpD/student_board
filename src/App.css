@@ -10,9 +10,12 @@
   --text-header: #0e1b36;
   --text-sidebar: #cfd8dc;
   --text-muted: #6c757d;
+  --text-chat-input: #ffffff;
 
   --accent-color: #a81c22; 
   --border-color: #dee2e6;
+
+  --icons-color: #212529;
 }
 
 /* DARK MODE */
@@ -24,10 +27,13 @@
   --text-main: #e0e0e0;
   --text-header: #ffffff; 
   --text-sidebar: #b0bec5;
-  --text-muted: #9e9e9e;
+  --text-muted: #b0bec5;
+  --text-chat-input: #ffffff;
 
   --accent-color: #d32f2f; 
   --border-color: #333333;
+
+  --icons-color: #d32f2f;
 
   /* BOOTSTRAP OVERRIDES */
   --bs-body-bg: var(--bg-body);
@@ -35,6 +41,19 @@
   --bs-card-bg: var(--bg-card);
   --bs-border-color: var(--border-color);
   --bs-card-border-color: var(--border-color);
+  .bg-white {
+    background-color: var(--bg-card) !important;
+    color: var(--text-main) !important;
+  }
+  .form-control, .form-select {
+    background-color: var(--bg-body) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-main) !important;
+  }
+}
+
+[data-theme='dark'] .text-muted {
+  color: var(--text-muted) !important;
 }
 
 /* --- GLOBAL --- */
@@ -114,7 +133,7 @@ h1, h2, h3, h4, h5, h6 {
 
 /* --- COMPONENTS --- */
 .card {
-  background-color: var(--bg-card) !important;
+  background-color: var(--bg-card);
   border: 1px solid var(--border-color);
   border-radius: 15px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.05);
@@ -144,6 +163,13 @@ h1, h2, h3, h4, h5, h6 {
   border: 1px solid var(--border-color);
   color: var(--text-main);
   border-radius: 30px;
+}
+
+.chat-input:focus {
+  background-color: var(--bg-body);
+  color: var(--text-main);
+  box-shadow: none;
+  border-color: var(--accent-color);
 }
 
 /* Ensure input text is visible in dark mode */
