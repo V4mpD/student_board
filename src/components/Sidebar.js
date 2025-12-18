@@ -29,7 +29,7 @@ const Sidebar = ({ isDarkMode, toggleTheme }) => {
       {/* 1. Header */}
       <div className="sidebar-header">
          <h3 className="m-0 fw-bold d-flex align-items-center" style={{ letterSpacing: '1px' }}>
-           <FaUniversity className="me-2"/> UniHub
+           <FaUniversity className="me-2"/> RAU Hub
          </h3>
       </div>
 

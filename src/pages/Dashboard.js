@@ -2,106 +2,108 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { FaClock, FaCalendarDay, FaPlay, FaPause, FaRedo } from 'react-icons/fa';
-import Loading from '../components/Loading';
 
 const Dashboard = () => {
-    const { user } = useAuth();
-    const [time, setTime] = useState(new Date());
+  const { user } = useAuth();
+  const [time, setTime] = useState(new Date());
+  
+  const [displayClasses, setDisplayClasses] = useState([]);
+  const [latestNews, setLatestNews] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [displayDay, setDisplayDay] = useState("Today's"); // State for header text
 
-    // Data states
-    const [todayClasses, setTodayClasses] = useState([]);
-    const [latestNews, setLatestNews] = useState([]);
-    const [isLoading, setIsLoading] = useState(true);
+  // Focus Timer States
+  const [timerLeft, setTimerLeft] = useState(25 * 60);
+  const [isTimerActive, setIsTimerActive] = useState(false);
 
-    // Focus timer states
-    const [timerLeft, setTimerLeft] = useState(25 * 60); // 25 minutes
-    const [isTimerActive, setIsTimerActive] = useState(false);
+  // 1. CLOCK
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
 
-    // Clock and greeting logic
-    useEffect(() => {
-        const timer = setInterval(() => setTime(new Date()), 60000);
-        return () => clearInterval(timer);
-    }, []);
+  const getGreeting = () => {
+    const hour = time.getHours();
+    if (hour < 12) return "Good Morning";
+    if (hour < 18) return "Good Afternoon";
+    return "Good Evening";
+  };
 
-    // Greetings based on time of day
-    const getGreeting = () => {
-        const hour = time.getHours();
-        if (hour < 12) return 'Good Morning';
-        if (hour < 18) return 'Good Afternoon';
-        return 'Good Evening';
-    };
-
-    // Focus timer logic
-    useEffect(() => {
-        let interval = null;
-
-        if (isTimerActive && timerLeft > 0) {
-            interval = setInterval(() => setTimerLeft((t) => t - 1), 1000);
-        } else if (timerLeft === 0) {
-            setIsTimerActive(false);
-            alert('Focus session completed! Time to take a break.');
-        }
-        return () => clearInterval(interval);
-    }, [isTimerActive, timerLeft]);
-
-    const formatTime = (seconds) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
-    };
-
-    // Fetch data for news and schedule
-    useEffect(() => {
-        if (!user) return;
-
-        const fetchData = async () => {
-            
-            try{
-                // Fetch schedule
-                const scheduleRes = await fetch(`http://localhost:5000/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`);
-                const scheduleData = await scheduleRes.json();
-
-
-                // Filter today's classes
-                const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                const currentDayName = dayNames[new Date().getDay()]
-                
-                const todays = scheduleData.filter(item =>
-                    item.day_of_week === currentDayName ||
-                    (item.specific_date && new Date(item.specific_date).toDateString() === new Date().toDateString())
-                );
-
-                // Sort by time
-                todays.sort((a, b) => a.start_time.localeCompare(b.start_time));
-                setTodayClasses(todays);
-
-
-                // Fetch news
-                const newsRes = await fetch(`http://localhost:5000/api/announcements?faculty=${encodeURIComponent(user.faculty)}`);
-                const newsData = await newsRes.json();
-                setLatestNews(newsData.slice(0, 2)); // Get latest 2 news
-        
-            } catch (error) {
-                console.error("Error fetching data:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchData();
-    }, [user]);
-
-    if (isLoading) {
-        return <Loading />;
+  // 2. FOCUS TIMER
+  useEffect(() => {
+    let interval = null;
+    if (isTimerActive && timerLeft > 0) {
+      interval = setInterval(() => setTimerLeft((t) => t - 1), 1000);
+    } else if (timerLeft === 0) {
+      setIsTimerActive(false);
+      alert("Focus session complete! Take a break.");
     }
+    return () => clearInterval(interval);
+  }, [isTimerActive, timerLeft]);
 
-    return (
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  // 3. FETCH DATA
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchData = async () => {
+      try {
+        // A. Fetch Schedule
+        const scheduleRes = await fetch(`http://localhost:5000/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`);
+        const scheduleData = await scheduleRes.json();
+        
+        // --- LOGIC: Show Tomorrow after 18:00 ---
+        const now = new Date();
+        const currentHour = now.getHours();
+        
+        // Determine Target Date
+        const targetDate = new Date();
+        let targetTitle = "Today's";
+
+        if (currentHour >= 18) {
+            targetDate.setDate(targetDate.getDate() + 1); // Move to tomorrow
+            targetTitle = "Tomorrow's";
+        }
+        setDisplayDay(targetTitle);
+
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const targetDayName = dayNames[targetDate.getDay()];
+        
+        const filteredClasses = scheduleData.filter(item => 
+          item.day_of_week === targetDayName || 
+          (item.specific_date && new Date(item.specific_date).toDateString() === targetDate.toDateString())
+        );
+        
+        filteredClasses.sort((a, b) => a.start_time.localeCompare(b.start_time));
+        setDisplayClasses(filteredClasses);
+
+        // B. Fetch News
+        const newsRes = await fetch(`http://localhost:5000/api/announcements?faculty=${encodeURIComponent(user.faculty)}`);
+        const newsData = await newsRes.json();
+        setLatestNews(newsData.slice(0, 2));
+
+      } catch (err) {
+        console.error("Dashboard fetch error:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [user]);
+
+  return (
     <div className="container-fluid page-padding">
       <h2 className="mb-4 fw-bold">Dashboard</h2>
       
-      {/* BENTO GRID LAYOUT */}
       <div className="row g-4">
         
-        {/* WIDGET 1: GREETING (Wide Top-Left) */}
+        {/* WIDGET 1: GREETING */}
         <div className="col-md-8">
           <div className="card h-100 p-4 border-0 text-white" style={{ background: 'linear-gradient(135deg, var(--bg-sidebar) 0%, var(--accent-color) 100%)' }}>
             <div className="d-flex justify-content-between align-items-center h-100">
@@ -120,23 +122,18 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* WIDGET 2: FOCUS TIMER (Small Top-Right) */}
+        {/* WIDGET 2: FOCUS ZONE */}
         <div className="col-md-4">
           <div 
             className="card h-100 border-0 shadow-sm text-center p-3 text-white" 
-            style={{ 
-              /* NEW GRADIENT */
-              background: 'linear-gradient(135deg, #43c6ac 0%, #f8ffae 100%)' 
-            }}
+            style={{ background: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)' }}
           >
-            {/* Centered Flex Container */}
             <div className="d-flex flex-column align-items-center justify-content-center h-100">
-                <h5 className="mb-3" style={{ opacity: 0.9 }}>⚡ Focus Zone ⚡</h5>
+                <h5 className="mb-3" style={{ opacity: 0.9 }}>⚡ Focus Zone</h5>
                 <div className="display-4 fw-bold mb-3" style={{ fontFamily: 'monospace' }}>
                   {formatTime(timerLeft)}
                 </div>
                 <div className="d-flex justify-content-center gap-2">
-                  {/* Buttons with white borders for contrast */}
                   <button 
                     className={`btn ${isTimerActive ? 'btn-light text-danger' : 'btn-outline-light'} rounded-pill px-4`}
                     onClick={() => setIsTimerActive(!isTimerActive)}
@@ -154,23 +151,23 @@ const Dashboard = () => {
           </div>
         </div>
 
-
-        {/* WIDGET 3: UP NEXT (Schedule) */}
+        {/* WIDGET 3: SCHEDULE */}
         <div className="col-md-6 col-lg-7">
           <div className="card h-100 shadow-sm">
-            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2">
-              <h5 className="mb-0 fw-bold">📅 Today's Schedule</h5>
+            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2" style={{ backgroundColor: 'transparent' }}>
+              {/* DYNAMIC HEADER TEXT */}
+              <h5 className="mb-0 fw-bold">📅 {displayDay} Schedule</h5>
               <Link to="/calendar" className="text-decoration-none small">View Full Calendar →</Link>
             </div>
             <div className="card-body">
-              {isLoading ? <p>Loading...</p> : todayClasses.length === 0 ? (
+              {isLoading ? <p>Loading...</p> : displayClasses.length === 0 ? (
                 <div className="text-center py-5 text-muted">
-                  <h5>🎉 No classes today!</h5>
+                  <h5>🎉 No classes {displayDay.toLowerCase().replace("'s", "")}!</h5>
                   <p>Enjoy your free time.</p>
                 </div>
               ) : (
                 <div className="list-group list-group-flush">
-                  {todayClasses.map((item, index) => (
+                  {displayClasses.map((item, index) => (
                     <div key={index} className="list-group-item d-flex justify-content-between align-items-center py-3">
                       <div>
                         <h6 className="mb-0 fw-bold">{item.course_name}</h6>
@@ -185,10 +182,10 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {/* WIDGET 4: NEWS (Announcements) */}
+        {/* WIDGET 4: NEWS */}
         <div className="col-md-6 col-lg-5">
           <div className="card h-100 shadow-sm">
-            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2">
+            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2" style={{ backgroundColor: 'transparent' }}>
               <h5 className="mb-0 fw-bold">📢 Latest News</h5>
               <Link to="/announcements" className="text-decoration-none small">All News →</Link>
             </div>

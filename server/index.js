@@ -171,6 +171,31 @@ io.on('connection', (socket) => {
     });
 });
 
+// === DELETE ROUTES ===
+// Need to add delete routes for schedule later :P
+
+app.delete('/api/schedule/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = db.prepare('DELETE FROM class_schedule WHERE id = ?').run(id);
+        if (result.changes > 0) res.json({ success: true });
+        else res.status(404).json({ error: "Item not found" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/assignments/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = db.prepare('DELETE FROM assignments WHERE id = ?').run(id);
+        if (result.changes > 0) res.json({ success: true });
+        else res.status(404).json({ error: "Item not found" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // 4. CHANGE: app.listen -> server.listen
 server.listen(PORT, () => {
     console.log(`Student Board Server (HTTP+Socket) running on port ${PORT}`);

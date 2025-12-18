@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { FaPlus } from 'react-icons/fa';
 import AddAnnouncementModal from '../components/AddAnnouncementModal'; // Import the new component
-import Loading from '../components/Loading';
 
 const Announcements = () => {
     const { user } = useAuth();
