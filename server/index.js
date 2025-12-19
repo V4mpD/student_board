@@ -196,6 +196,19 @@ app.delete('/api/assignments/:id', (req, res) => {
     }
 });
 
+// === SERVE REACT FRONTEND (Production Only) ===
+if (process.env.NODE_ENV === 'production') {
+    // 1. Serve the static files from the React build folder
+    // Note: We move up one level (..) because 'build' is a sibling of 'server'
+    app.use(express.static(path.join(__dirname, '../build')));
+
+    // 2. Handle React Routing (Catch-all)
+    // For any request that doesn't match an API route, send the React app
+    app.get('*', (req, res) => {
+        res.sendFile(path.resolve(__dirname, '../build', 'index.html'));
+    });
+}
+
 // 4. CHANGE: app.listen -> server.listen
 server.listen(PORT, () => {
     console.log(`Student Board Server (HTTP+Socket) running on port ${PORT}`);
