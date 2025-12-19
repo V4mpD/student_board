@@ -124,8 +124,8 @@ const Calendar = () => {
         if (!user) return;
         try {
             const [resSchedule, resDeadlines] = await Promise.all([
-                fetch(`http://localhost:5000/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`),
-                fetch(`http://localhost:5000/api/deadlines?groupName=${encodeURIComponent(user.groupName)}`)
+                fetch(`/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`),
+                fetch(`/api/deadlines?groupName=${encodeURIComponent(user.groupName)}`)
             ]);
 
             const scheduleData = await resSchedule.json();
@@ -157,8 +157,8 @@ const Calendar = () => {
         
         // Determine endpoint based on source
         const endpoint = selectedEvent.source === 'assignment' 
-            ? `http://localhost:5000/api/assignments/${selectedEvent.id}`
-            : `http://localhost:5000/api/schedule/${selectedEvent.id}`;
+            ? `/api/assignments/${selectedEvent.id}`
+            : `/api/schedule/${selectedEvent.id}`;
 
         try {
             const res = await fetch(endpoint, { method: 'DELETE' });

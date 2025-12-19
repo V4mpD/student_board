@@ -196,16 +196,13 @@ app.delete('/api/assignments/:id', (req, res) => {
     }
 });
 
-// === SERVE REACT FRONTEND (Production Only) ===
-if (process.env.NODE_ENV === 'production') {
-    // 1. Serve the static files from the React build folder
-    // Note: We move up one level (..) because 'build' is a sibling of 'server'
-    app.use(express.static(path.join(__dirname, '../build')));
+const buildPath = path.join(__dirname, '..', 'build');
 
-    // 2. Handle React Routing (Catch-all)
-    // For any request that doesn't match an API route, send the React app
+if (fs.existsSync(buildPath)) {
+    app.use(express.static(buildPath));
+
     app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build', 'index.html'));
+        res.sendFile(path.join(buildPath, 'index.html'));
     });
 }
 
