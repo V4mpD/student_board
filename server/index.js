@@ -196,6 +196,16 @@ app.delete('/api/assignments/:id', (req, res) => {
     }
 });
 
+const buildPath = path.join(__dirname, '..', 'build');
+
+if (fs.existsSync(buildPath)) {
+    app.use(express.static(buildPath));
+
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(buildPath, 'index.html'));
+    });
+}
+
 // 4. CHANGE: app.listen -> server.listen
 server.listen(PORT, () => {
     console.log(`Student Board Server (HTTP+Socket) running on port ${PORT}`);

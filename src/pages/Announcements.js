@@ -14,7 +14,7 @@ const Announcements = () => {
         setIsLoading(true);
         try {
             const userParams = new URLSearchParams({ faculty: user.faculty });
-            const response = await fetch(`http://localhost:5000/api/announcements?${userParams}`);
+            const response = await fetch(`/api/announcements?${userParams}`);
             const data = await response.json();
 
             const formattedData = data.map(post => ({
