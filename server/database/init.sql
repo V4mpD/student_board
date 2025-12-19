@@ -8,10 +8,10 @@ CREATE TABLE IF NOT EXISTS users (
     full_name TEXT,
     
     -- Academic Grouping
-    college TEXT NOT NULL,
-    study_year INTEGER,
-    series TEXT,
-    group_name TEXT NOT NULL,
+    faculty TEXT NOT NULL,     -- e.g., "FMI", "Automatica"
+    study_year INTEGER,        -- e.g., 1
+    series TEXT,               -- e.g., "Series B"
+    group_name TEXT NOT NULL,  -- e.g., "311"
     
     -- Permissions
     is_group_admin BOOLEAN DEFAULT 0
@@ -49,6 +49,36 @@ CREATE TABLE IF NOT EXISTS announcements (
     content TEXT NOT NULL,
     posted_by INTEGER,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    target_group TEXT, -- e.g., "Year 1", "Series B"
+    target_group TEXT, 
     FOREIGN KEY(posted_by) REFERENCES users(id)
 );
+
+-- 4. Chat Messages Table
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER NOT NULL,
+    sender_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    
+    -- Scope: 'university', 'faculty', or 'group'
+    scope TEXT CHECK(scope IN ('university', 'faculty', 'group')) NOT NULL,
+    
+    -- Target: "MAIN" (for Uni), "FMI" (for Faculty), "311" (for Group)
+    target TEXT NOT NULL, 
+    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(sender_id) REFERENCES users(id)
+);
+
+-- 5. Assignments Table (NEW)
+CREATE TABLE IF NOT EXISTS assignments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    course_name TEXT NOT NULL, -- e.g., "Data Structures"
+    title TEXT NOT NULL,       -- e.g., "Homework 1"
+    description TEXT,          -- e.g., "Upload PDF to Moodle"
+    due_date DATETIME NOT NULL, -- Full timestamp: YYYY-MM-DD HH:MM
+    
+    target_group TEXT,         -- Who is this for?
+    created_by INTEGER,
+    FOREIGN KEY(created_by) REFERENCES users(id)
+    );

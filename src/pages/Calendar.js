@@ -1,103 +1,243 @@
-import React, { useState } from 'react';
-import { Modal, Button, Form } from 'react-bootstrap';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Calendar as BigCalendar, dateFnsLocalizer } from 'react-big-calendar';
+import { format, parse, startOfWeek, getDay } from 'date-fns';
+import { enGB } from 'date-fns/locale';
+import { useAuth } from '../context/AuthContext';
+import { FaPlus, FaTrash } from 'react-icons/fa';
+import { Modal, Button } from 'react-bootstrap'; // Import components for Delete Modal
+import AddEventModal from '../components/AddEventModal';
+import 'react-big-calendar/lib/css/react-big-calendar.css';
+
+const locales = { 'en-GB': enGB };
+const localizer = dateFnsLocalizer({
+    format, parse, startOfWeek, getDay, locales,
+});
 
 const Calendar = () => {
-  const [showModal, setShowModal] = useState(false);
+    const { user } = useAuth();
+    const [events, setEvents] = useState([]);
+    const [view, setView] = useState('month');
+    const [date, setDate] = useState(new Date());
+    
+    // Modal States
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [selectedEvent, setSelectedEvent] = useState(null);
 
-  const handleClose = () => setShowModal(false);
-  const handleShow = () => setShowModal(true);
+    // --- 1. ACADEMIC INTERVALS LOGIC ---
+    const getAcademicRanges = () => {
+        const now = new Date();
+        // Calculate "Start Year" (If we are in Jan 2026, academic year started Sep 2025)
+        const currentYear = now.getFullYear();
+        const startYear = now.getMonth() < 8 ? currentYear - 1 : currentYear;
+        const nextYear = startYear + 1;
 
-  return (
-    <div className="container py-4">
+        // Your Exact Intervals
+        return [
+            { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) }, // 29.09 - 21.12
+            { start: new Date(nextYear, 0, 21), end: new Date(nextYear, 0, 25) },    // 21.01 - 25.01
+            { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 3, 5) },     // 23.02 - 05.04
+            { start: new Date(nextYear, 3, 15), end: new Date(nextYear, 5, 7) }      // 15.04 - 07.06
+        ];
+    };
 
-      <button className='btn btn-success mb-3' onClick={handleShow}>+ Add Event</button>
-      <Modal show={showModal} onHide={handleClose}>
-        <Modal.Header closeButton>
-          <Modal.Title>Add New Event</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Event Name</Form.Label>
-              <Form.Control type="text" placeholder="e.g. Math Exam" />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Type</Form.Label>
-              <Form.Select>
-                <option>Course</option>
-                <option>Exam</option>
-                <option>Deadline</option>
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Date</Form.Label>
-              <Form.Control type="datetime-local" />
-            </Form.Group>
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleClose}>Close</Button>
-          <Button variant="primary" onClick={handleClose}>Save Event</Button>
-        </Modal.Footer>
-      </Modal>
+    // --- 2. DATA TRANSFORMER ---
+    const processData = (scheduleData = [], deadlineData = []) => {
+        const allEvents = [];
+        const ranges = getAcademicRanges();
 
-      <h2 className="mb-4">📅 Calendar Academic</h2>
-      
-      <div className="row">
-        {/* Deadlines Column */}
-        <div className="col-md-4">
-          <div className="card h-100">
-            <div className="card-header bg-danger text-white">Termene Limită Apropiate</div>
-            <ul className="list-group list-group-flush">
-              <li className="list-group-item d-flex justify-content-between align-items-center">
-                Proiect Web
-                <span className="badge bg-danger rounded-pill">Mâine</span>
-              </li>
-              <li className="list-group-item d-flex justify-content-between align-items-center">
-                Examen Baze de Date
-                <span className="badge bg-warning text-dark rounded-pill">3 Zile</span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        if (Array.isArray(scheduleData)) {
+            scheduleData.forEach(item => {
+                if (!item) return;
 
-        {/* Schedule Column */}
-        <div className="col-md-8">
-          <div className="card h-100">
-            <div className="card-header bg-primary text-white">Programul Săptămânii</div>
-            <div className="card-body">
-              <div className="table-responsive">
-                <table className="table table-bordered text-center">
-                  <thead className="table-light">
-                    <tr>
-                      <th>Time</th>
-                      <th>Mon</th>
-                      <th>Wed</th>
-                      <th>Fri</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>08:00</td>
-                      <td className="table-primary">React Course (Lab 301)</td>
-                      <td>-</td>
-                      <td className="table-success">Sport</td>
-                    </tr>
-                    <tr>
-                      <td>10:00</td>
-                      <td>-</td>
-                      <td className="table-info">Database Lecture (Hall A)</td>
-                      <td>-</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                // TYPE A: ONE-TIME (Exams/Specific Events) - Show regardless of ranges
+                if (item.specific_date) {
+                    allEvents.push({
+                        id: item.id,
+                        title: `${item.course_name} (${item.location})`,
+                        start: new Date(`${item.specific_date}T${item.start_time}`),
+                        end: new Date(`${item.specific_date}T${item.end_time}`),
+                        isSpecial: true,
+                        source: 'schedule' // Mark source for deletion
+                    });
+                } 
+                // TYPE B: RECURRING (Weekly Classes) - Respect Ranges!
+                else if (item.day_of_week && item.start_time && item.end_time) {
+                    const dayMap = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
+                    const targetDay = dayMap[item.day_of_week];
+
+                    if (targetDay !== undefined) {
+                        // Loop through ONLY the active academic ranges
+                        ranges.forEach(range => {
+                            let current = new Date(range.start);
+                            // Advance to the first occurrence of the target day in this range
+                            while (current.getDay() !== targetDay) {
+                                current.setDate(current.getDate() + 1);
+                            }
+
+                            // Generate weekly until range end
+                            while (current <= range.end) {
+                                const [sH, sM] = item.start_time.split(':');
+                                const [eH, eM] = item.end_time.split(':');
+                                
+                                const start = new Date(current); start.setHours(sH, sM, 0);
+                                const end = new Date(current); end.setHours(eH, eM, 0);
+
+                                allEvents.push({
+                                    id: item.id, // Database ID (needed for delete)
+                                    title: `${item.course_name} (${item.location})`,
+                                    start, end,
+                                    isSpecial: false,
+                                    source: 'schedule'
+                                });
+
+                                // Jump to next week
+                                current.setDate(current.getDate() + 7);
+                            }
+                        });
+                    }
+                }
+            });
+        }
+
+        // TYPE C: DEADLINES
+        if (Array.isArray(deadlineData)) {
+            deadlineData.forEach(item => {
+                if (!item || !item.due_date) return;
+                const due = new Date(item.due_date);
+                allEvents.push({
+                    id: item.id,
+                    title: `⚠️ DUE: ${item.title} (${item.course_name})`,
+                    start: due,
+                    end: new Date(due.getTime() + 60*60*1000),
+                    isSpecial: true,
+                    source: 'assignment' // Mark source for deletion
+                });
+            });
+        }
+
+        return allEvents.filter(e => e && e.title && e.start && e.end);
+    };
+
+    // --- 3. API ACTIONS ---
+    const fetchAllEvents = useCallback(async () => {
+        if (!user) return;
+        try {
+            const [resSchedule, resDeadlines] = await Promise.all([
+                fetch(`http://localhost:5000/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`),
+                fetch(`http://localhost:5000/api/deadlines?groupName=${encodeURIComponent(user.groupName)}`)
+            ]);
+
+            const scheduleData = await resSchedule.json();
+            const deadlineData = await resDeadlines.json();
+
+            const combinedEvents = processData(scheduleData, deadlineData);
+            setEvents(combinedEvents);
+        } catch (err) {
+            console.error("Calendar fetch error:", err);
+            setEvents([]);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchAllEvents();
+    }, [fetchAllEvents]);
+
+    // Handle Event Click
+    const handleSelectEvent = (event) => {
+        if (user?.role === 'ADMIN') {
+            setSelectedEvent(event);
+            setShowDeleteModal(true);
+        }
+    };
+
+    // Handle Delete Confirmation
+    const handleDelete = async () => {
+        if (!selectedEvent) return;
+        
+        // Determine endpoint based on source
+        const endpoint = selectedEvent.source === 'assignment' 
+            ? `http://localhost:5000/api/assignments/${selectedEvent.id}`
+            : `http://localhost:5000/api/schedule/${selectedEvent.id}`;
+
+        try {
+            const res = await fetch(endpoint, { method: 'DELETE' });
+            if (res.ok) {
+                fetchAllEvents();
+                setShowDeleteModal(false);
+            } else {
+                alert("Failed to delete event.");
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Error deleting event.");
+        }
+    };
+
+    const eventStyleGetter = (event) => ({
+        style: {
+            backgroundColor: event.isSpecial ? 'var(--accent-color)' : '#0d6efd',
+            borderRadius: '5px', opacity: 0.9, color: 'white', border: '0px', display: 'block'
+        }
+    });
+
+    return (
+        <div className='container-fluid page-padding h-100 d-flex flex-column'>
+            <div className='d-flex justify-content-between align-items-center mb-3'>
+                <h2>📅 Academic Calendar</h2>
+                {user?.role === 'ADMIN' && (
+                    <button 
+                        className="btn btn-primary d-flex align-items-center gap-2"
+                        onClick={() => setShowAddModal(true)}
+                    >
+                        <FaPlus /> Add Event
+                    </button>
+                )}
             </div>
-          </div>
+
+            <div className='flex-grow-1' style={{ height: '80vh', backgroundColor: 'var(--bg-card)', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)'}}>
+                <BigCalendar
+                    localizer={localizer}
+                    events={events}
+                    startAccessor="start"
+                    endAccessor="end"
+                    style={{ height: '100%' }}
+                    view={view}
+                    onView={setView}
+                    date={date}
+                    onNavigate={setDate}
+                    min={new Date(0,0,0,8,0,0)}
+                    max={new Date(0,0,0,20,0,0)}
+                    eventPropGetter={eventStyleGetter}
+                    onSelectEvent={handleSelectEvent} // Enables clicking events
+                />
+            </div>
+
+            {/* DELETE CONFIRMATION MODAL */}
+            <Modal show={showDeleteModal} onHide={() => setShowDeleteModal(false)} centered>
+                <Modal.Header closeButton style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                    <Modal.Title>Delete Event?</Modal.Title>
+                </Modal.Header>
+                <Modal.Body style={{ backgroundColor: 'var(--bg-card)', color: 'var(--text-main)' }}>
+                    <p>Are you sure you want to delete <strong>{selectedEvent?.title}</strong>?</p>
+                    <p className="text-danger small">Note: If this is a weekly class, all occurrences will be removed.</p>
+                </Modal.Body>
+                <Modal.Footer style={{ backgroundColor: 'var(--bg-card)', borderTopColor: 'var(--border-color)' }}>
+                    <Button variant="secondary" onClick={() => setShowDeleteModal(false)}>Cancel</Button>
+                    <Button variant="danger" onClick={handleDelete}><FaTrash/> Delete</Button>
+                </Modal.Footer>
+            </Modal>
+
+            {/* ADD EVENT MODAL */}
+            {user?.role === 'ADMIN' && (
+                <AddEventModal 
+                    show={showAddModal} 
+                    handleClose={() => setShowAddModal(false)} 
+                    refreshCalendar={fetchAllEvents} 
+                />
+            )}
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export default Calendar;
