@@ -204,7 +204,7 @@ if (process.env.NODE_ENV === 'production') {
 
     // 2. Handle React Routing (Catch-all)
     // For any request that doesn't match an API route, send the React app
-    app.get('/*', (req, res) => {
+    app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../build', 'index.html'));
     });
 }
