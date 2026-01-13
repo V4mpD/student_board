@@ -1,9 +1,10 @@
 // server/index.js
 const express = require('express');
-const { Pool } = require('pg'); // CHANGED: Import 'pg'
+const { Pool } = require('pg');
 const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path'); // <--- ADDED THIS MISSING IMPORT
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -14,22 +15,20 @@ app.use(express.json());
 // ----------------------------------------------------
 // DATABASE SETUP (POSTGRESQL)
 // ----------------------------------------------------
-// The connection string comes from Render Environment Variables
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: {
-        rejectUnauthorized: false // Required for most cloud DBs
+        rejectUnauthorized: false
     }
 });
 
-// Test connection
 pool.connect((err) => {
     if (err) console.error('Connection error', err.stack);
     else console.log('Connected to PostgreSQL successfully');
 });
 
 // ----------------------------------------------------
-// API ROUTES (REST APIs remain active!)
+// API ROUTES
 // ----------------------------------------------------
 
 // === 1. USER AUTHENTICATION ===
@@ -37,19 +36,17 @@ app.post('/api/register', async (req, res) => {
     const { username, password, fullName, faculty, year, series, groupName } = req.body;
     
     try {
-        // Check if group exists to determine ADMIN status
         const checkGroup = await pool.query(
             'SELECT COUNT(*) as count FROM users WHERE faculty = $1 AND group_name = $2', 
             [faculty, groupName]
         );
         const isFirstUser = parseInt(checkGroup.rows[0].count) === 0;
 
-        // Insert User
         const insertQuery = `
             INSERT INTO users (username, password_hash, full_name, faculty, study_year, series, group_name, is_group_admin) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
             RETURNING id
-        `; // RETURNING id is specific to Postgres to get the ID back
+        `;
 
         const result = await pool.query(insertQuery, [
             username, password, fullName, faculty, year, series, groupName, isFirstUser
@@ -63,7 +60,7 @@ app.post('/api/register', async (req, res) => {
         });
 
     } catch (err) {
-        if (err.code === '23505') { // Postgres error code for Unique Violation
+        if (err.code === '23505') {
             res.status(400).json({ error: "Username already taken" });
         } else {
             console.error(err);
@@ -163,7 +160,6 @@ app.post('/api/schedule', async (req, res) => {
 app.get('/api/deadlines', async (req, res) => {
     const { groupName } = req.query;
     try {
-        // Postgres: Use NOW() instead of datetime('now')
         const result = await pool.query(
             `SELECT * FROM assignments WHERE target_group = $1 AND due_date >= NOW() ORDER BY due_date ASC`,
             [groupName]
@@ -205,6 +201,7 @@ app.get('/api/messages', async (req, res) => {
     }
 });
 
+// === DELETE ROUTES (Corrected - Postgres Version) ===
 app.delete('/api/schedule/:id', async (req, res) => {
     const { id } = req.params;
     try {
@@ -233,7 +230,7 @@ app.delete('/api/assignments/:id', async (req, res) => {
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: "*", // Allow all for simplicity in production
+        origin: "*", 
         methods: ["GET", "POST"]
     }
 });
@@ -247,7 +244,6 @@ io.on('connection', (socket) => {
     });
 
     socket.on('send_message', async (data) => {
-        // data = { sender_id, sender_name, content, scope, target, room_id }
         try {
             const query = `
                 INSERT INTO chat_messages (sender_id, sender_name, content, scope, target)
@@ -275,41 +271,12 @@ io.on('connection', (socket) => {
     });
 });
 
-// === DELETE ROUTES ===
-// Need to add delete routes for schedule later :P
-
-app.delete('/api/schedule/:id', (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = db.prepare('DELETE FROM class_schedule WHERE id = ?').run(id);
-        if (result.changes > 0) res.json({ success: true });
-        else res.status(404).json({ error: "Item not found" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-app.delete('/api/assignments/:id', (req, res) => {
-    const { id } = req.params;
-    try {
-        const result = db.prepare('DELETE FROM assignments WHERE id = ?').run(id);
-        if (result.changes > 0) res.json({ success: true });
-        else res.status(404).json({ error: "Item not found" });
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
 // === SERVE REACT FRONTEND (Production Only) ===
 if (process.env.NODE_ENV === 'production') {
-    // 1. Serve the static files from the React build folder
-    // Note: We move up one level (..) because 'build' is a sibling of 'server'
     app.use(express.static(path.join(__dirname, '../build')));
 
-    // 2. Handle React Routing (Catch-all)
-    // For any request that doesn't match an API route, send the React app
     app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build', 'index.html'));
+        res.sendFile(path.join(__dirname, '../build', 'index.html'));
     });
 }
 
