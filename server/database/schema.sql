@@ -2,7 +2,7 @@
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     username TEXT UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     full_name TEXT,
@@ -14,12 +14,12 @@ CREATE TABLE IF NOT EXISTS users (
     group_name TEXT NOT NULL,  -- e.g., "311"
     
     -- Permissions
-    is_group_admin BOOLEAN DEFAULT 0
+    is_group_admin BOOLEAN DEFAULT FALSE
 );
 
 -- 2. Class Schedule Table (UPDATED)
 CREATE TABLE IF NOT EXISTS class_schedule (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     course_name TEXT NOT NULL,
     day_of_week TEXT NOT NULL,
     start_time TEXT NOT NULL,
@@ -29,34 +29,32 @@ CREATE TABLE IF NOT EXISTS class_schedule (
     specific_date DATE,
     
     -- Assignment Tracking
-    has_assignment BOOLEAN DEFAULT 0,
+    has_assignment BOOLEAN DEFAULT FALSE,
     assignment_details TEXT,
     
     -- NEW: Cancellation Flag
-    is_cancelled BOOLEAN DEFAULT 0, 
+    is_cancelled BOOLEAN DEFAULT FALSE,
 
     -- Targeting
     target_college TEXT,
     target_group TEXT,
-    created_by INTEGER,
-    FOREIGN KEY(created_by) REFERENCES users(id)
+    created_by INTEGER REFERENCES users(id)
 );
 
 -- 3. Announcements Table (THIS WAS MISSING)
 CREATE TABLE IF NOT EXISTS announcements (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     title TEXT NOT NULL,
     content TEXT NOT NULL,
-    posted_by INTEGER,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    target_group TEXT, 
-    FOREIGN KEY(posted_by) REFERENCES users(id)
+    posted_by INTEGER REFERENCES users(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    target_group TEXT
 );
 
 -- 4. Chat Messages Table
 CREATE TABLE IF NOT EXISTS chat_messages (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sender_id INTEGER NOT NULL,
+    id SERIAL PRIMARY KEY,
+    sender_id INTEGER NOT NULL REFERENCES users(id),
     sender_name TEXT NOT NULL,
     content TEXT NOT NULL,
     
@@ -66,19 +64,18 @@ CREATE TABLE IF NOT EXISTS chat_messages (
     -- Target: "MAIN" (for Uni), "FMI" (for Faculty), "311" (for Group)
     target TEXT NOT NULL, 
     
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY(sender_id) REFERENCES users(id)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 5. Assignments Table (NEW)
 CREATE TABLE IF NOT EXISTS assignments (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    id SERIAL PRIMARY KEY,
     course_name TEXT NOT NULL, -- e.g., "Data Structures"
     title TEXT NOT NULL,       -- e.g., "Homework 1"
     description TEXT,          -- e.g., "Upload PDF to Moodle"
-    due_date DATETIME NOT NULL, -- Full timestamp: YYYY-MM-DD HH:MM
+    due_date TIMESTAMP NOT NULL, -- Full timestamp: YYYY-MM-DD HH:MM
     
     target_group TEXT,         -- Who is this for?
     created_by INTEGER,
-    FOREIGN KEY(created_by) REFERENCES users(id)
+    created_by INTEGER REFERENCES users(id)
     );
