@@ -275,14 +275,41 @@ io.on('connection', (socket) => {
     });
 });
 
-const path = require('path');
-const buildPath = path.join(__dirname, '..', 'build');
-const fs = require('fs');
+// === DELETE ROUTES ===
+// Need to add delete routes for schedule later :P
 
-if (fs.existsSync(buildPath)) {
-    app.use(express.static(buildPath));
-    app.get(/.*/, (req, res) => {
-        res.sendFile(path.join(buildPath, 'index.html'));
+app.delete('/api/schedule/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = db.prepare('DELETE FROM class_schedule WHERE id = ?').run(id);
+        if (result.changes > 0) res.json({ success: true });
+        else res.status(404).json({ error: "Item not found" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/assignments/:id', (req, res) => {
+    const { id } = req.params;
+    try {
+        const result = db.prepare('DELETE FROM assignments WHERE id = ?').run(id);
+        if (result.changes > 0) res.json({ success: true });
+        else res.status(404).json({ error: "Item not found" });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// === SERVE REACT FRONTEND (Production Only) ===
+if (process.env.NODE_ENV === 'production') {
+    // 1. Serve the static files from the React build folder
+    // Note: We move up one level (..) because 'build' is a sibling of 'server'
+    app.use(express.static(path.join(__dirname, '../build')));
+
+    // 2. Handle React Routing (Catch-all)
+    // For any request that doesn't match an API route, send the React app
+    app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../build', 'index.html'));
     });
 }
 

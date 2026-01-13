@@ -54,7 +54,7 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // A. Fetch Schedule
-        const scheduleRes = await fetch(`http://localhost:5000/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`);
+        const scheduleRes = await fetch(`/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`);
         const scheduleData = await scheduleRes.json();
         
         // --- LOGIC: Show Tomorrow after 18:00 ---
@@ -83,7 +83,7 @@ const Dashboard = () => {
         setDisplayClasses(filteredClasses);
 
         // B. Fetch News
-        const newsRes = await fetch(`http://localhost:5000/api/announcements?faculty=${encodeURIComponent(user.faculty)}`);
+        const newsRes = await fetch(`/api/announcements?faculty=${encodeURIComponent(user.faculty)}`);
         const newsData = await newsRes.json();
         setLatestNews(newsData.slice(0, 2));
 

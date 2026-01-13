@@ -27,7 +27,7 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
         e.preventDefault();
         
         try {
-            let endpoint = 'http://localhost:5000/api/schedule';
+            let endpoint = '/api/schedule';
             let payload = { ...formData, created_by: user.id };
 
             // LOGIC FOR WEEKLY / ONCE
@@ -57,7 +57,7 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
             } 
             // LOGIC FOR DEADLINE
             else if (activeTab === 'deadline') {
-                endpoint = 'http://localhost:5000/api/assignments';
+                endpoint = '/api/assignments';
                 payload = {
                     course_name: formData.course_name,
                     title: formData.title,

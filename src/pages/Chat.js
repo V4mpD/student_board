@@ -4,7 +4,7 @@ import { FaArrowUp, FaUniversity, FaBuilding, FaUserFriends } from 'react-icons/
 import io from 'socket.io-client';
 
 // Connect to Backend
-const socket = io.connect("http://localhost:5000");
+const socket = io.connect();
 
 const Chat = () => {
   const { user } = useAuth();
@@ -56,7 +56,7 @@ const Chat = () => {
                 scope: activeRoom.scope,
                 target: activeRoom.target
             });
-            const res = await fetch(`http://localhost:5000/api/messages?${params}`);
+            const res = await fetch(`/api/messages?${params}`);
             const data = await res.json();
             setMessages(data);
         } catch (err) {

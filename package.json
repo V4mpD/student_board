@@ -20,12 +20,14 @@
     "socket.io-client": "^4.8.1",
     "web-vitals": "^2.1.4"
   },
-  "scripts": {
-    "start": "node server/index.js",
-    "build": "npm install && npm run build:ui && cd server && npm install",
-    "build:ui": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+ "scripts": {
+  "start": "node server/index.js",
+  "build": "npm install && npm install --prefix server && react-scripts build",
+  "test": "react-scripts test",
+  "eject": "react-scripts eject"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "eslintConfig": {
     "extends": [
