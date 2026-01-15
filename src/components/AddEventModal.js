@@ -55,6 +55,10 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
                 const dateObj = new Date(formData.specific_date + 'T12:00:00');
                 const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
                 payload.day_of_week = days[dateObj.getDay()]; 
+
+                // FIX 2: FORCE RESET week_type
+                // This ignores whatever "odd/even" selection might be lingering in formData
+                payload.week_type = 'all';
             } 
             // LOGIC FOR DEADLINE
             else if (activeTab === 'deadline') {
@@ -78,7 +82,8 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
             if (res.ok) {
                 refreshCalendar();
                 handleClose();
-                setFormData(prev => ({ ...prev, title: '', description: '', specific_date: '' })); 
+                setFormData(prev => ({ ...prev, title: '', description: '', specific_date: '',week_type: 'all' // Reset this so it doesn't stick 
+                })); 
             } else {
                 const errData = await res.json();
                 alert("Failed to add event: " + (errData.error || "Unknown error"));

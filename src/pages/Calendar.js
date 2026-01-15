@@ -159,7 +159,7 @@ const Calendar = () => {
         if (!user) return;
         try {
             const [resSchedule, resDeadlines] = await Promise.all([
-                fetch(`/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`),
+                fetch(`/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=everything`),
                 fetch(`/api/deadlines?groupName=${encodeURIComponent(user.groupName)}`)
             ]);
 

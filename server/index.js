@@ -136,12 +136,23 @@ app.post('/api/announcements', async (req, res) => {
 app.get('/api/schedule', async (req, res) => {
     const { groupName, weekType } = req.query;
     try {
-        const query = `
-            SELECT * FROM class_schedule 
-            WHERE target_group = $1 
-            AND (specific_date IS NOT NULL OR (week_type = 'all' OR week_type = $2))
-        `;
-        const result = await pool.query(query, [groupName, weekType]);
+        let query;
+        let params = [groupName];
+
+        // FIX: If Frontend asks for 'everything', return ALL classes for this group
+        if (weekType === 'everything') {
+            query = `SELECT * FROM class_schedule WHERE target_group = $1`;
+        } else {
+            // Original strict filtering (only used if we want a specific week view)
+            query = `
+                SELECT * FROM class_schedule 
+                WHERE target_group = $1 
+                AND (specific_date IS NOT NULL OR (week_type = 'all' OR week_type = $2))
+            `;
+            params.push(weekType);
+        }
+
+        const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (err) {
         res.status(500).json({ error: err.message });
