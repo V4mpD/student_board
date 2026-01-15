@@ -4,7 +4,12 @@ import { FaArrowUp, FaUniversity, FaBuilding, FaUserFriends } from 'react-icons/
 import io from 'socket.io-client';
 
 // Connect to Backend
-const socket = io.connect();
+// If we are on localhost, go to port 5000. Otherwise (production), use the current URL.
+const socket = io.connect(
+    window.location.hostname === 'localhost' 
+        ? 'http://localhost:5000' 
+        : '/'
+);
 
 const Chat = () => {
   const { user } = useAuth();

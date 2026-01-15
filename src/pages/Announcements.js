@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { FaPlus } from 'react-icons/fa';
 import AddAnnouncementModal from '../components/AddAnnouncementModal'; // Import the new component
+import Loading from '../components/Loading'; // 2. Import Loading component
 
 const Announcements = () => {
     const { user } = useAuth();
@@ -10,8 +11,8 @@ const Announcements = () => {
     const [showModal, setShowModal] = useState(false); // State for modal
 
     // Function to fetch data (we pass this to the modal so it can refresh the list)
-    const fetchAnnouncements = async () => {
-        setIsLoading(true);
+    const fetchAnnouncements = useCallback(async () => {
+        setIsLoading(true); // Now we use this setter
         try {
             const userParams = new URLSearchParams({ faculty: user.faculty });
             const response = await fetch(`/api/announcements?${userParams}`);
@@ -33,14 +34,15 @@ const Announcements = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [user]); // Dependency: Re-create function only if 'user' changes
 
-
-
-
+    // 4. Update useEffect dependencies
     useEffect(() => {
         if (user) fetchAnnouncements();
-    }, [user]);
+    }, [user, fetchAnnouncements]); // Now safe to include fetchAnnouncements
+
+    // 5. Use the isLoading state!
+    if (isLoading) return <Loading />;
 
     return (
         <div className='container page-padding position-relative' style={{ minHeight: '100vh' }}>

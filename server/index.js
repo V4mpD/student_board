@@ -1,4 +1,5 @@
 // server/index.js
+require('dotenv').config();
 const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
@@ -25,6 +26,11 @@ const pool = new Pool({
 pool.connect((err) => {
     if (err) console.error('Connection error', err.stack);
     else console.log('Connected to PostgreSQL successfully');
+});
+
+pool.on('error', (err, client) => {
+    console.error('Unexpected error on idle client', err);
+    process.exit(-1);
 });
 
 // ----------------------------------------------------
@@ -143,12 +149,12 @@ app.get('/api/schedule', async (req, res) => {
 });
 
 app.post('/api/schedule', async (req, res) => {
-    const { course_name, day_of_week, start_time, end_time, location, week_type, specific_date, has_assignment, assignment_details, is_cancelled, target_group, created_by } = req.body;
+    const { course_name, day_of_week, start_time, end_time, location, week_type, specific_date, has_assignment, assignment_details, is_cancelled, target_group, created_by, semester } = req.body;
     try {
         const result = await pool.query(
-            `INSERT INTO class_schedule (course_name, day_of_week, start_time, end_time, location, week_type, specific_date, has_assignment, assignment_details, is_cancelled, target_group, created_by) 
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
-            [course_name, day_of_week, start_time, end_time, location, week_type, specific_date, has_assignment, assignment_details, is_cancelled, target_group, created_by]
+            `INSERT INTO class_schedule (course_name, day_of_week, start_time, end_time, location, week_type, specific_date, has_assignment, assignment_details, is_cancelled, target_group, created_by,semester) 
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+            [course_name, day_of_week, start_time, end_time, location, week_type, specific_date, has_assignment, assignment_details, is_cancelled, target_group, created_by, semester || 1]
         );
         res.json({ success: true, id: result.rows[0].id });
     } catch (err) {

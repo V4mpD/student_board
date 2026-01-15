@@ -16,7 +16,8 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
         specific_date: '',
         target_group: user?.groupName || '', 
         title: '', 
-        description: '' 
+        description: '', 
+        semester: 1, // <--- Add this (default 1)
     });
 
     const handleChange = (e) => {
@@ -28,7 +29,7 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
         
         try {
             let endpoint = '/api/schedule';
-            let payload = { ...formData, created_by: user.id };
+            let payload = { ...formData, created_by: user.id, semester: parseInt(formData.semester) };
 
             // LOGIC FOR WEEKLY / ONCE
             if (activeTab === 'weekly') {
@@ -142,6 +143,17 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
                                     {/* NEW OPTION */}
                                     <option value="once">Once (Specific Date)</option>
                                 </Form.Select>
+                            </div>
+                            <div className="mb-3">
+                                <label className="form-label">Semester</label>
+    <select 
+        className="form-select" 
+        value={formData.semester} 
+        onChange={(e) => setFormData({...formData, semester: parseInt(e.target.value)})}
+    >
+        <option value={1}>Semester 1 (Fall)</option>
+        <option value={2}>Semester 2 (Spring)</option>
+    </select>
                             </div>
                         </div>
                     )}

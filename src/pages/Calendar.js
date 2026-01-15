@@ -25,32 +25,48 @@ const Calendar = () => {
     const [selectedEvent, setSelectedEvent] = useState(null);
 
     // --- 1. ACADEMIC INTERVALS LOGIC ---
-    const getAcademicRanges = () => {
+    const getAcademicRanges = useCallback((semesterId) => {
         const now = new Date();
-        // Calculate "Start Year" (If we are in Jan 2026, academic year started Sep 2025)
         const currentYear = now.getFullYear();
         const startYear = now.getMonth() < 8 ? currentYear - 1 : currentYear;
         const nextYear = startYear + 1;
 
-        // Your Exact Intervals
-        return [
-            { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) }, // 29.09 - 21.12
-            { start: new Date(nextYear, 0, 21), end: new Date(nextYear, 0, 25) },    // 21.01 - 25.01
-            { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 3, 5) },     // 23.02 - 05.04
-            { start: new Date(nextYear, 3, 15), end: new Date(nextYear, 5, 7) }      // 15.04 - 07.06
-        ];
-    };
-
+        // Define strict ranges for each semester
+        if (semesterId === 1) {
+            return [
+                { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 23) }, // Sep - Dec
+                { start: new Date(nextYear, 0, 5), end: new Date(nextYear, 0, 20) }      // Jan (Exam Session)
+            ];
+        } else {
+            return [
+                { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 5, 7) }      // Feb - Jun
+            ];
+        }
+    }, []); // No dependencies needed here
+    
     // --- 2. DATA TRANSFORMER ---
-    const processData = (scheduleData = [], deadlineData = []) => {
+    const processData = useCallback((scheduleData = [], deadlineData = []) => {
         const allEvents = [];
-        const ranges = getAcademicRanges();
+        
+        // NOTE: We no longer fetch 'ranges' here globally.
+        // We fetch them per item inside the loop.
 
         if (Array.isArray(scheduleData)) {
             scheduleData.forEach(item => {
                 if (!item) return;
 
-                // TYPE A: ONE-TIME (Exams/Specific Events) - Show regardless of ranges
+                // 1. Determine which semester this specific class belongs to (Default to 1)
+                const itemSemester = item.semester || 1;
+
+                // 2. Get the valid Academic Ranges for THIS item's semester
+                const ranges = getAcademicRanges(itemSemester);
+
+                // DEFINE ANCHOR DATE FOR ODD/EVEN CALCULATION ---
+                // "Week 1" is always the start of the first range of the semester.
+                // (e.g., Sep 29 for Sem 1, Feb 23 for Sem 2)
+                const semesterStart = ranges[0].start;
+
+                // TYPE A: ONE-TIME (Exams/Specific Events)
                 if (item.specific_date) {
                     allEvents.push({
                         id: item.id,
@@ -58,40 +74,58 @@ const Calendar = () => {
                         start: new Date(`${item.specific_date}T${item.start_time}`),
                         end: new Date(`${item.specific_date}T${item.end_time}`),
                         isSpecial: true,
-                        source: 'schedule' // Mark source for deletion
+                        source: 'schedule',
+                        resource: item 
                     });
                 } 
-                // TYPE B: RECURRING (Weekly Classes) - Respect Ranges!
+                // TYPE B: RECURRING (Weekly Classes) - Uses the Semester Ranges!
                 else if (item.day_of_week && item.start_time && item.end_time) {
                     const dayMap = { 'Sunday': 0, 'Monday': 1, 'Tuesday': 2, 'Wednesday': 3, 'Thursday': 4, 'Friday': 5, 'Saturday': 6 };
                     const targetDay = dayMap[item.day_of_week];
 
                     if (targetDay !== undefined) {
-                        // Loop through ONLY the active academic ranges
+                        // Loop through the ranges valid for THIS item's semester
                         ranges.forEach(range => {
                             let current = new Date(range.start);
-                            // Advance to the first occurrence of the target day in this range
+                            
+                            // Advance to the first occurrence of the target day
                             while (current.getDay() !== targetDay) {
                                 current.setDate(current.getDate() + 1);
                             }
 
-                            // Generate weekly until range end
+                            // Generate weekly events until range end
                             while (current <= range.end) {
-                                const [sH, sM] = item.start_time.split(':');
-                                const [eH, eM] = item.end_time.split(':');
+                                // --- 2. CALCULATE WEEK PARITY ---
+                                // Get difference in weeks from the Semester Start
+                                const diffTime = Math.abs(current - semesterStart);
+                                const diffWeeks = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7)); 
                                 
-                                const start = new Date(current); start.setHours(sH, sM, 0);
-                                const end = new Date(current); end.setHours(eH, eM, 0);
+                                // Week 1 (diff=0) is Odd. Week 2 (diff=1) is Even.
+                                const isOddWeek = (diffWeeks % 2) === 0; 
 
-                                allEvents.push({
-                                    id: item.id, // Database ID (needed for delete)
-                                    title: `${item.course_name} (${item.location})`,
-                                    start, end,
-                                    isSpecial: false,
-                                    source: 'schedule'
-                                });
+                                // --- 3. FILTER BASED ON WEEK TYPE ---
+                                let shouldShow = true;
+                                if (item.week_type === 'odd' && !isOddWeek) shouldShow = false;
+                                if (item.week_type === 'even' && isOddWeek) shouldShow = false;
 
-                                // Jump to next week
+                                if (shouldShow) {
+                                    const [sH, sM] = item.start_time.split(':');
+                                    const [eH, eM] = item.end_time.split(':');
+                                    
+                                    const start = new Date(current); start.setHours(sH, sM, 0);
+                                    const end = new Date(current); end.setHours(eH, eM, 0);
+
+                                    allEvents.push({
+                                        id: item.id,
+                                        title: `${item.course_name} (${item.location})`,
+                                        start, end,
+                                        isSpecial: false,
+                                        source: 'schedule',
+                                        resource: item
+                                    });
+                                }
+
+                                // Next week
                                 current.setDate(current.getDate() + 7);
                             }
                         });
@@ -111,13 +145,14 @@ const Calendar = () => {
                     start: due,
                     end: new Date(due.getTime() + 60*60*1000),
                     isSpecial: true,
-                    source: 'assignment' // Mark source for deletion
+                    source: 'assignment',
+                    resource: item
                 });
             });
         }
 
         return allEvents.filter(e => e && e.title && e.start && e.end);
-    };
+    }, [getAcademicRanges]);
 
     // --- 3. API ACTIONS ---
     const fetchAllEvents = useCallback(async () => {
@@ -137,7 +172,7 @@ const Calendar = () => {
             console.error("Calendar fetch error:", err);
             setEvents([]);
         }
-    }, [user]);
+    }, [user, processData]); // processData is now a stable dependency
 
     useEffect(() => {
         fetchAllEvents();
