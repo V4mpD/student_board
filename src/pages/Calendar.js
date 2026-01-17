@@ -30,6 +30,7 @@ const Calendar = () => {
   const [view, setView] = useState("month");
   const [date, setDate] = useState(new Date());
 
+  // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
@@ -38,18 +39,20 @@ const Calendar = () => {
   const getAcademicRanges = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
+    // Calculate "Start Year" (If we are in Jan 2026, academic year started Sep 2025)
     const startYear = now.getMonth() < 8 ? currentYear - 1 : currentYear;
     const nextYear = startYear + 1;
 
-    const academicStart = new Date(startYear, 8, 29); // Sept 29
+    // DEFINITION: Week 1 starts on Sept 29th.
+    const academicStart = new Date(startYear, 8, 29);
 
     return {
       academicStart,
       ranges: [
-        { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) },
-        { start: new Date(nextYear, 0, 12), end: new Date(nextYear, 0, 25) },
-        { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 3, 5) },
-        { start: new Date(nextYear, 3, 15), end: new Date(nextYear, 5, 7) },
+        { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) }, // Sem 1
+        { start: new Date(nextYear, 0, 12), end: new Date(nextYear, 0, 25) }, // Sem 1 (continued)
+        { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 3, 5) }, // Sem 2
+        { start: new Date(nextYear, 3, 15), end: new Date(nextYear, 5, 7) }, // Sem 2 (continued)
       ],
     };
   };
@@ -59,7 +62,7 @@ const Calendar = () => {
     const allEvents = [];
     const { academicStart, ranges } = getAcademicRanges();
 
-    // TIMEZONE FIX: Parse ISO string to Date object to preserve local day
+    // Helper: Safe Date Parsing (Respects Timezones)
     const mergeDateAndTime = (dateIsoString, timeStr) => {
       if (!dateIsoString || !timeStr) return null;
       const dateObj = new Date(dateIsoString);
@@ -74,7 +77,7 @@ const Calendar = () => {
       scheduleData.forEach((item) => {
         if (!item) return;
 
-        // A: ONE-TIME EVENTS
+        // === A: SPECIFIC DATE EVENTS (One-Time / Exams) ===
         if (item.specific_date) {
           const start = mergeDateAndTime(item.specific_date, item.start_time);
           const end = mergeDateAndTime(item.specific_date, item.end_time);
@@ -90,7 +93,7 @@ const Calendar = () => {
             });
           }
         }
-        // B: WEEKLY EVENTS (All, Odd, Even)
+        // === B: RECURRING WEEKLY (All / Odd / Even) ===
         else if (item.day_of_week && item.start_time && item.end_time) {
           const dayMap = {
             Sunday: 0,
@@ -106,13 +109,12 @@ const Calendar = () => {
           if (targetDay !== undefined) {
             ranges.forEach((range) => {
               let current = new Date(range.start);
-
-              // Align with target day
+              // Advance to first occurrence of the day
               while (current.getDay() !== targetDay) {
                 current.setDate(current.getDate() + 1);
               }
 
-              // Generate weeks
+              // Loop through weeks in range
               while (current <= range.end) {
                 // Parity Logic
                 const weekDiff = differenceInCalendarWeeks(
@@ -128,6 +130,7 @@ const Calendar = () => {
                   shouldRender = false;
                 if (item.week_type === "even" && isOddWeek)
                   shouldRender = false;
+                // 'once' items are handled by specific_date logic above, so ignore them here
                 if (item.week_type === "once") shouldRender = false;
 
                 if (shouldRender) {
@@ -156,7 +159,7 @@ const Calendar = () => {
       });
     }
 
-    // C: DEADLINES
+    // === C: DEADLINES ===
     if (Array.isArray(deadlineData)) {
       deadlineData.forEach((item) => {
         if (!item || !item.due_date) return;
@@ -177,14 +180,14 @@ const Calendar = () => {
     return allEvents;
   };
 
+  // --- 3. FETCH DATA ---
   const fetchAllEvents = useCallback(async () => {
     if (!user) return;
     try {
-      // FIX: Removed "&weekType=all" so backend returns EVERYTHING (Odd, Even, All)
-      // This allows the frontend loop to filter them correctly.
+      // FIX: "weekType=everything" unlocks the backend filter!
       const [resSchedule, resDeadlines] = await Promise.all([
         fetch(
-          `${API_BASE_URL}/api/schedule?groupName=${encodeURIComponent(user.groupName)}`,
+          `${API_BASE_URL}/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=everything`,
         ),
         fetch(
           `${API_BASE_URL}/api/deadlines?groupName=${encodeURIComponent(user.groupName)}`,
@@ -209,6 +212,7 @@ const Calendar = () => {
     fetchAllEvents();
   }, [fetchAllEvents]);
 
+  // --- 4. DELETE LOGIC ---
   const handleSelectEvent = (event) => {
     if (user?.role === "ADMIN") {
       setSelectedEvent(event);
@@ -291,6 +295,7 @@ const Calendar = () => {
         />
       </div>
 
+      {/* DELETE MODAL */}
       <Modal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -336,6 +341,7 @@ const Calendar = () => {
         </Modal.Footer>
       </Modal>
 
+      {/* ADD EVENT MODAL */}
       {user?.role === "ADMIN" && (
         <AddEventModal
           show={showAddModal}

@@ -78,7 +78,7 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
       } else {
         // IT IS A SCHEDULE EVENT (Weekly or One-Time)
 
-        if (activeTab === "one-time" || uiFrequency === "all") {
+        if (activeTab === "one-time" || uiFrequency === "once") {
           // === TYPE: ONE TIME EVENT ===
           if (!formData.specific_date) {
             alert("Please select a date.");
