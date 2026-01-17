@@ -1,12 +1,19 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { FaClock, FaCalendarDay, FaPlay, FaPause, FaRedo } from 'react-icons/fa';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import {
+  FaClock,
+  FaCalendarDay,
+  FaPlay,
+  FaPause,
+  FaRedo,
+} from "react-icons/fa";
+import API_BASE_URL from "../apiConfig";
 
 const Dashboard = () => {
   const { user } = useAuth();
   const [time, setTime] = useState(new Date());
-  
+
   const [displayClasses, setDisplayClasses] = useState([]);
   const [latestNews, setLatestNews] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +51,7 @@ const Dashboard = () => {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    return `${mins}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
   // 3. FETCH DATA
@@ -54,39 +61,55 @@ const Dashboard = () => {
     const fetchData = async () => {
       try {
         // A. Fetch Schedule
-        const scheduleRes = await fetch(`/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`);
+        const scheduleRes = await fetch(
+          `${API_BASE_URL}/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=all`,
+        );
         const scheduleData = await scheduleRes.json();
-        
+
         // --- LOGIC: Show Tomorrow after 18:00 ---
         const now = new Date();
         const currentHour = now.getHours();
-        
+
         // Determine Target Date
         const targetDate = new Date();
         let targetTitle = "Today's";
 
         if (currentHour >= 18) {
-            targetDate.setDate(targetDate.getDate() + 1); // Move to tomorrow
-            targetTitle = "Tomorrow's";
+          targetDate.setDate(targetDate.getDate() + 1); // Move to tomorrow
+          targetTitle = "Tomorrow's";
         }
         setDisplayDay(targetTitle);
 
-        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayNames = [
+          "Sunday",
+          "Monday",
+          "Tuesday",
+          "Wednesday",
+          "Thursday",
+          "Friday",
+          "Saturday",
+        ];
         const targetDayName = dayNames[targetDate.getDay()];
-        
-        const filteredClasses = scheduleData.filter(item => 
-          item.day_of_week === targetDayName || 
-          (item.specific_date && new Date(item.specific_date).toDateString() === targetDate.toDateString())
+
+        const filteredClasses = scheduleData.filter(
+          (item) =>
+            item.day_of_week === targetDayName ||
+            (item.specific_date &&
+              new Date(item.specific_date).toDateString() ===
+                targetDate.toDateString()),
         );
-        
-        filteredClasses.sort((a, b) => a.start_time.localeCompare(b.start_time));
+
+        filteredClasses.sort((a, b) =>
+          a.start_time.localeCompare(b.start_time),
+        );
         setDisplayClasses(filteredClasses);
 
         // B. Fetch News
-        const newsRes = await fetch(`/api/announcements?faculty=${encodeURIComponent(user.faculty)}`);
+        const newsRes = await fetch(
+          `${API_BASE_URL}/api/announcements?faculty=${encodeURIComponent(user.faculty)}`,
+        );
         const newsData = await newsRes.json();
         setLatestNews(newsData.slice(0, 2));
-
       } catch (err) {
         console.error("Dashboard fetch error:", err);
       } finally {
@@ -100,19 +123,32 @@ const Dashboard = () => {
   return (
     <div className="container-fluid page-padding">
       <h2 className="mb-4 fw-bold">Dashboard</h2>
-      
+
       <div className="row g-4">
-        
         {/* WIDGET 1: GREETING */}
         <div className="col-md-8">
-          <div className="card h-100 p-4 border-0 text-white" style={{ background: 'linear-gradient(135deg, var(--bg-sidebar) 0%, var(--accent-color) 100%)' }}>
+          <div
+            className="card h-100 p-4 border-0 text-white"
+            style={{
+              background:
+                "linear-gradient(135deg, var(--bg-sidebar) 0%, var(--accent-color) 100%)",
+            }}
+          >
             <div className="d-flex justify-content-between align-items-center h-100">
               <div>
-                <h1 className="fw-bold mb-1">{getGreeting()}, {user?.username}! 👋</h1>
-                <p className="lead mb-0 opacity-75">Ready to conquer the day?</p>
+                <h1 className="fw-bold mb-1">
+                  {getGreeting()}, {user?.username}! 👋
+                </h1>
+                <p className="lead mb-0 opacity-75">
+                  Ready to conquer the day?
+                </p>
                 <div className="mt-3 badge bg-white text-dark p-2">
-                  <FaCalendarDay className="me-2"/>
-                  {time.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
+                  <FaCalendarDay className="me-2" />
+                  {time.toLocaleDateString("en-GB", {
+                    weekday: "long",
+                    day: "numeric",
+                    month: "long",
+                  })}
                 </div>
               </div>
               <div className="display-1 opacity-25 d-none d-lg-block">
@@ -124,29 +160,47 @@ const Dashboard = () => {
 
         {/* WIDGET 2: FOCUS ZONE */}
         <div className="col-md-4">
-          <div 
-            className="card h-100 border-0 shadow-sm text-center p-3 text-white" 
-            style={{ background: 'linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)' }}
+          <div
+            className="card h-100 border-0 shadow-sm text-center p-3 text-white"
+            style={{
+              background: "linear-gradient(135deg, #FF9966 0%, #FF5E62 100%)",
+            }}
           >
             <div className="d-flex flex-column align-items-center justify-content-center h-100">
-                <h5 className="mb-3" style={{ opacity: 0.9 }}>⚡ Focus Zone</h5>
-                <div className="display-4 fw-bold mb-3" style={{ fontFamily: 'monospace' }}>
-                  {formatTime(timerLeft)}
-                </div>
-                <div className="d-flex justify-content-center gap-2">
-                  <button 
-                    className={`btn ${isTimerActive ? 'btn-light text-danger' : 'btn-outline-light'} rounded-pill px-4`}
-                    onClick={() => setIsTimerActive(!isTimerActive)}
-                  >
-                    {isTimerActive ? <><FaPause className="me-2"/> Pause</> : <><FaPlay className="me-2"/> Start</>}
-                  </button>
-                  <button 
-                    className="btn btn-outline-light rounded-circle"
-                    onClick={() => { setIsTimerActive(false); setTimerLeft(25 * 60); }}
-                  >
-                    <FaRedo />
-                  </button>
-                </div>
+              <h5 className="mb-3" style={{ opacity: 0.9 }}>
+                ⚡ Focus Zone
+              </h5>
+              <div
+                className="display-4 fw-bold mb-3"
+                style={{ fontFamily: "monospace" }}
+              >
+                {formatTime(timerLeft)}
+              </div>
+              <div className="d-flex justify-content-center gap-2">
+                <button
+                  className={`btn ${isTimerActive ? "btn-light text-danger" : "btn-outline-light"} rounded-pill px-4`}
+                  onClick={() => setIsTimerActive(!isTimerActive)}
+                >
+                  {isTimerActive ? (
+                    <>
+                      <FaPause className="me-2" /> Pause
+                    </>
+                  ) : (
+                    <>
+                      <FaPlay className="me-2" /> Start
+                    </>
+                  )}
+                </button>
+                <button
+                  className="btn btn-outline-light rounded-circle"
+                  onClick={() => {
+                    setIsTimerActive(false);
+                    setTimerLeft(25 * 60);
+                  }}
+                >
+                  <FaRedo />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -154,26 +208,43 @@ const Dashboard = () => {
         {/* WIDGET 3: SCHEDULE */}
         <div className="col-md-6 col-lg-7">
           <div className="card h-100 shadow-sm">
-            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2" style={{ backgroundColor: 'transparent' }}>
+            <div
+              className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2"
+              style={{ backgroundColor: "transparent" }}
+            >
               {/* DYNAMIC HEADER TEXT */}
               <h5 className="mb-0 fw-bold">📅 {displayDay} Schedule</h5>
-              <Link to="/calendar" className="text-decoration-none small">View Full Calendar →</Link>
+              <Link to="/calendar" className="text-decoration-none small">
+                View Full Calendar →
+              </Link>
             </div>
             <div className="card-body">
-              {isLoading ? <p>Loading...</p> : displayClasses.length === 0 ? (
+              {isLoading ? (
+                <p>Loading...</p>
+              ) : displayClasses.length === 0 ? (
                 <div className="text-center py-5 text-muted">
-                  <h5>🎉 No classes {displayDay.toLowerCase().replace("'s", "")}!</h5>
+                  <h5>
+                    🎉 No classes {displayDay.toLowerCase().replace("'s", "")}!
+                  </h5>
                   <p>Enjoy your free time.</p>
                 </div>
               ) : (
                 <div className="list-group list-group-flush">
                   {displayClasses.map((item, index) => (
-                    <div key={index} className="list-group-item d-flex justify-content-between align-items-center py-3">
+                    <div
+                      key={index}
+                      className="list-group-item d-flex justify-content-between align-items-center py-3"
+                    >
                       <div>
                         <h6 className="mb-0 fw-bold">{item.course_name}</h6>
-                        <small className="text-muted"><FaClock className="me-1"/>{item.start_time} - {item.end_time} • {item.location}</small>
+                        <small className="text-muted">
+                          <FaClock className="me-1" />
+                          {item.start_time} - {item.end_time} • {item.location}
+                        </small>
                       </div>
-                      <span className="badge bg-primary rounded-pill">Class</span>
+                      <span className="badge bg-primary rounded-pill">
+                        Class
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -185,21 +256,35 @@ const Dashboard = () => {
         {/* WIDGET 4: NEWS */}
         <div className="col-md-6 col-lg-5">
           <div className="card h-100 shadow-sm">
-            <div className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2" style={{ backgroundColor: 'transparent' }}>
+            <div
+              className="card-header border-0 d-flex justify-content-between align-items-center mt-2 mx-2"
+              style={{ backgroundColor: "transparent" }}
+            >
               <h5 className="mb-0 fw-bold">📢 Latest News</h5>
-              <Link to="/announcements" className="text-decoration-none small">All News →</Link>
+              <Link to="/announcements" className="text-decoration-none small">
+                All News →
+              </Link>
             </div>
             <div className="card-body">
-              {isLoading ? <p>Loading...</p> : latestNews.length === 0 ? (
-                <p className="text-muted text-center py-4">No updates available.</p>
+              {isLoading ? (
+                <p>Loading...</p>
+              ) : latestNews.length === 0 ? (
+                <p className="text-muted text-center py-4">
+                  No updates available.
+                </p>
               ) : (
-                latestNews.map(news => (
+                latestNews.map((news) => (
                   <div key={news.id} className="card mb-3 border bg-light">
                     <div className="card-body p-3">
                       <h6 className="card-title fw-bold mb-1">{news.title}</h6>
-                      <p className="card-text small text-muted text-truncate">{news.content}</p>
-                      <small className="text-primary" style={{fontSize: '0.75rem'}}>
-                         Posted by {news.author_name || 'Admin'}
+                      <p className="card-text small text-muted text-truncate">
+                        {news.content}
+                      </p>
+                      <small
+                        className="text-primary"
+                        style={{ fontSize: "0.75rem" }}
+                      >
+                        Posted by {news.author_name || "Admin"}
                       </small>
                     </div>
                   </div>
@@ -208,7 +293,6 @@ const Dashboard = () => {
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
