@@ -28,7 +28,7 @@ const Login = () => {
             }
 
             // Successful login
-            login(data.user);
+            login(data.user, data.token);
 
             // Redirect to dashboard
             navigate('/');

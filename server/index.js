@@ -6,9 +6,12 @@ const cors = require('cors');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path'); // <--- ADDED THIS MISSING IMPORT
+const jwt = require('jsonwebtoken'); // <--- NEW
+const bcrypt = require('bcryptjs');  // <--- NEW
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || 'your_super_secret_key_change_this'; // <--- NEW
 
 app.use(cors());
 app.use(express.json());
@@ -34,6 +37,22 @@ pool.on('error', (err, client) => {
 });
 
 // ----------------------------------------------------
+// MIDDLEWARE (Protect Routes)
+// ----------------------------------------------------
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+
+    if (!token) return res.sendStatus(401); // Unauthorized
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) return res.sendStatus(403); // Forbidden
+        req.user = user;
+        next();
+    });
+};
+
+// ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------
 
@@ -42,11 +61,17 @@ app.post('/api/register', async (req, res) => {
     const { username, password, fullName, faculty, year, series, groupName } = req.body;
     
     try {
+        // Check for duplicates
         const checkGroup = await pool.query(
             'SELECT COUNT(*) as count FROM users WHERE faculty = $1 AND group_name = $2', 
             [faculty, groupName]
         );
         const isFirstUser = parseInt(checkGroup.rows[0].count) === 0;
+
+        // --- NEW: HASH PASSWORD ---
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+        // --------------------------
 
         const insertQuery = `
             INSERT INTO users (username, password_hash, full_name, faculty, study_year, series, group_name, is_group_admin) 
@@ -55,14 +80,25 @@ app.post('/api/register', async (req, res) => {
         `;
 
         const result = await pool.query(insertQuery, [
-            username, password, fullName, faculty, year, series, groupName, isFirstUser
+            username, hashedPassword, fullName, faculty, year, series, groupName, isFirstUser
         ]);
+
+        // Generate Token immediately after registration
+        const token = jwt.sign(
+            { 
+                id: result.rows[0].id, 
+                username, 
+                role: isFirstUser ? 'ADMIN' : 'STUDENT',
+                groupName 
+            }, 
+            JWT_SECRET, 
+            { expiresIn: '30d' }
+        );
 
         res.json({ 
             success: true, 
-            userId: result.rows[0].id, 
-            role: isFirstUser ? 'ADMIN' : 'STUDENT', 
-            groupName: groupName 
+            token, // Send token instead of raw ID
+            user: { username, role: isFirstUser ? 'ADMIN' : 'STUDENT', groupName }
         });
 
     } catch (err) {
@@ -78,24 +114,46 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
     const { username, password } = req.body;
     try {
-        const result = await pool.query(
-            'SELECT * FROM users WHERE username = $1 AND password_hash = $2', 
-            [username, password]
-        );
-        
+        const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
         const user = result.rows[0];
 
-        if (user) {
-            res.json({
-                success: true,
-                user: {
-                    id: user.id, username: user.username, role: user.is_group_admin ? 'ADMIN' : 'STUDENT',
-                    faculty: user.faculty, groupName: user.group_name, year: user.study_year, series: user.series
-                }
-            });
-        } else {
-            res.status(401).json({ error: "Invalid credentials" });
+        if (!user) return res.status(401).json({ error: "User not found" });
+
+        // --- NEW: SECURE PASSWORD CHECK ---
+        let isMatch = await bcrypt.compare(password, user.password_hash);
+        
+        // *LAZY MIGRATION*: If hash fails, check if it's an old plain-text password
+        if (!isMatch && password === user.password_hash) {
+            console.log(`Migrating user ${username} to hashed password...`);
+            const salt = await bcrypt.genSalt(10);
+            const hashedPassword = await bcrypt.hash(password, salt);
+            await pool.query('UPDATE users SET password_hash = $1 WHERE id = $2', [hashedPassword, user.id]);
+            isMatch = true; // Allow login this one time
         }
+
+        if (!isMatch) return res.status(401).json({ error: "Invalid credentials" });
+
+        // Generate Token
+        const token = jwt.sign(
+            { 
+                id: user.id, 
+                username: user.username, 
+                role: user.is_group_admin ? 'ADMIN' : 'STUDENT',
+                groupName: user.group_name 
+            }, 
+            JWT_SECRET, 
+            { expiresIn: '30d' }
+        );
+
+        res.json({
+            success: true,
+            token,
+            user: {
+                id: user.id, username: user.username, role: user.is_group_admin ? 'ADMIN' : 'STUDENT',
+                faculty: user.faculty, groupName: user.group_name, year: user.study_year, series: user.series
+            }
+        });
+
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

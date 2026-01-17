@@ -11,24 +11,29 @@ export const AuthProvider = ({ children }) => {
 
     // Refresh persistance
     useEffect(() => {
-        const savedUser = localStorage.getItem("user");
-        if (savedUser) {
-            setUser(JSON.parse(savedUser));
+        const storedUser = localStorage.getItem('user');
+        const storedToken = localStorage.getItem('token')
+        if (storedUser && storedToken) {
+            setUser(JSON.parse(storedUser));
         }
         setLoading(false);
     }, []);
 
     // Login
-    const login = (userData) => {
+    // UPDATE: Now accepts 'token' as the second argument
+    const login = (userData, token) => {
         setUser(userData);
-        localStorage.setItem("user", JSON.stringify(userData));
-    }
+        localStorage.setItem('user', JSON.stringify(userData));
+        if (token) {
+            localStorage.setItem('token', token);
+        }
+    };
 
     // Logout
     const logout = () => {
         setUser(null);
-        localStorage.removeItem("user");
-        // WILL DO LATER: Redirect to login page
+        localStorage.removeItem('user');
+        localStorage.removeItem('token'); // Clear the token too
     };
 
     return (
