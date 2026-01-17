@@ -39,10 +39,14 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-pool.connect((err) => {
-  if (err) console.error("Connection error", err.stack);
-  else console.log("Connected to PostgreSQL successfully");
-});
+// Pool Query in loc de pool.connect ca tot primeam erori :)))
+pool
+  .query("SELECT NOW()")
+  .then(() => console.log("Connected to PostgreSQL successfully"))
+  .catch((err) => {
+    console.error("PostgreSQL connection error:", err);
+    process.exit(1);
+  });
 
 pool.on("error", (err, client) => {
   console.error("Unexpected error on idle client", err);
