@@ -1,13 +1,19 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Calendar as BigCalendar, dateFnsLocalizer } from "react-big-calendar";
-import { format, parse, startOfWeek, getDay } from "date-fns";
+import {
+  format,
+  parse,
+  startOfWeek,
+  getDay,
+  differenceInCalendarWeeks,
+} from "date-fns";
 import { enGB } from "date-fns/locale";
 import { useAuth } from "../context/AuthContext";
 import { FaPlus, FaTrash } from "react-icons/fa";
-import { Modal, Button } from "react-bootstrap"; // Import components for Delete Modal
+import { Modal, Button } from "react-bootstrap";
 import AddEventModal from "../components/AddEventModal";
-import "react-big-calendar/lib/css/react-big-calendar.css";
 import API_BASE_URL from "../apiConfig";
+import "react-big-calendar/lib/css/react-big-calendar.css";
 
 const locales = { "en-GB": enGB };
 const localizer = dateFnsLocalizer({
@@ -24,166 +30,161 @@ const Calendar = () => {
   const [view, setView] = useState("month");
   const [date, setDate] = useState(new Date());
 
-  // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
-  // --- 1. ACADEMIC INTERVALS LOGIC ---
-  const getAcademicRanges = useCallback((semesterId) => {
+  // --- 1. ACADEMIC CALENDAR CONFIGURATION ---
+  const getAcademicRanges = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
     const startYear = now.getMonth() < 8 ? currentYear - 1 : currentYear;
     const nextYear = startYear + 1;
 
-    // Define strict ranges for each semester
-    if (semesterId === 1) {
-      return [
-        { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 23) }, // Sep - Dec
-        { start: new Date(nextYear, 0, 5), end: new Date(nextYear, 0, 20) }, // Jan (Exam Session)
-      ];
-    } else {
-      return [
-        { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 5, 7) }, // Feb - Jun
-      ];
-    }
-  }, []); // No dependencies needed here
+    const academicStart = new Date(startYear, 8, 29); // Sept 29
 
-  // --- 2. DATA TRANSFORMER ---
-  const processData = useCallback(
-    (scheduleData = [], deadlineData = []) => {
-      const allEvents = [];
+    return {
+      academicStart,
+      ranges: [
+        { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) },
+        { start: new Date(nextYear, 0, 12), end: new Date(nextYear, 0, 25) },
+        { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 3, 5) },
+        { start: new Date(nextYear, 3, 15), end: new Date(nextYear, 5, 7) },
+      ],
+    };
+  };
 
-      // NOTE: We no longer fetch 'ranges' here globally.
-      // We fetch them per item inside the loop.
+  // --- 2. DATA PROCESSOR ---
+  const processData = (scheduleData = [], deadlineData = []) => {
+    const allEvents = [];
+    const { academicStart, ranges } = getAcademicRanges();
 
-      if (Array.isArray(scheduleData)) {
-        scheduleData.forEach((item) => {
-          if (!item) return;
+    // TIMEZONE FIX: Parse ISO string to Date object to preserve local day
+    const mergeDateAndTime = (dateIsoString, timeStr) => {
+      if (!dateIsoString || !timeStr) return null;
+      const dateObj = new Date(dateIsoString);
+      const year = dateObj.getFullYear();
+      const month = dateObj.getMonth();
+      const day = dateObj.getDate();
+      const [h, m] = timeStr.split(":").map(Number);
+      return new Date(year, month, day, h, m, 0);
+    };
 
-          // 1. Determine which semester this specific class belongs to (Default to 1)
-          const itemSemester = item.semester || 1;
+    if (Array.isArray(scheduleData)) {
+      scheduleData.forEach((item) => {
+        if (!item) return;
 
-          // 2. Get the valid Academic Ranges for THIS item's semester
-          const ranges = getAcademicRanges(itemSemester);
+        // A: ONE-TIME EVENTS
+        if (item.specific_date) {
+          const start = mergeDateAndTime(item.specific_date, item.start_time);
+          const end = mergeDateAndTime(item.specific_date, item.end_time);
 
-          // DEFINE ANCHOR DATE FOR ODD/EVEN CALCULATION ---
-          // "Week 1" is always the start of the first range of the semester.
-          // (e.g., Sep 29 for Sem 1, Feb 23 for Sem 2)
-          const semesterStart = ranges[0].start;
-
-          // TYPE A: ONE-TIME (Exams/Specific Events)
-          if (item.specific_date) {
+          if (start && end) {
             allEvents.push({
               id: item.id,
-              title: `${item.course_name} (${item.location})`,
-              start: new Date(`${item.specific_date}T${item.start_time}`),
-              end: new Date(`${item.specific_date}T${item.end_time}`),
+              title: `${item.course_name} (${item.location || "No Room"})`,
+              start,
+              end,
               isSpecial: true,
               source: "schedule",
-              resource: item,
             });
           }
-          // TYPE B: RECURRING (Weekly Classes) - Uses the Semester Ranges!
-          else if (item.day_of_week && item.start_time && item.end_time) {
-            const dayMap = {
-              Sunday: 0,
-              Monday: 1,
-              Tuesday: 2,
-              Wednesday: 3,
-              Thursday: 4,
-              Friday: 5,
-              Saturday: 6,
-            };
-            const targetDay = dayMap[item.day_of_week];
+        }
+        // B: WEEKLY EVENTS (All, Odd, Even)
+        else if (item.day_of_week && item.start_time && item.end_time) {
+          const dayMap = {
+            Sunday: 0,
+            Monday: 1,
+            Tuesday: 2,
+            Wednesday: 3,
+            Thursday: 4,
+            Friday: 5,
+            Saturday: 6,
+          };
+          const targetDay = dayMap[item.day_of_week];
 
-            if (targetDay !== undefined) {
-              // Loop through the ranges valid for THIS item's semester
-              ranges.forEach((range) => {
-                let current = new Date(range.start);
+          if (targetDay !== undefined) {
+            ranges.forEach((range) => {
+              let current = new Date(range.start);
 
-                // Advance to the first occurrence of the target day
-                while (current.getDay() !== targetDay) {
-                  current.setDate(current.getDate() + 1);
+              // Align with target day
+              while (current.getDay() !== targetDay) {
+                current.setDate(current.getDate() + 1);
+              }
+
+              // Generate weeks
+              while (current <= range.end) {
+                // Parity Logic
+                const weekDiff = differenceInCalendarWeeks(
+                  current,
+                  academicStart,
+                  { weekStartsOn: 1 },
+                );
+                const weekNumber = weekDiff + 1;
+                const isOddWeek = weekNumber % 2 !== 0;
+
+                let shouldRender = true;
+                if (item.week_type === "odd" && !isOddWeek)
+                  shouldRender = false;
+                if (item.week_type === "even" && isOddWeek)
+                  shouldRender = false;
+                if (item.week_type === "once") shouldRender = false;
+
+                if (shouldRender) {
+                  const [sH, sM] = item.start_time.split(":").map(Number);
+                  const [eH, eM] = item.end_time.split(":").map(Number);
+
+                  const start = new Date(current);
+                  start.setHours(sH, sM, 0);
+                  const end = new Date(current);
+                  end.setHours(eH, eM, 0);
+
+                  allEvents.push({
+                    id: item.id,
+                    title: `${item.course_name} (${item.location || "No Room"})`,
+                    start,
+                    end,
+                    isSpecial: false,
+                    source: "schedule",
+                  });
                 }
-
-                // Generate weekly events until range end
-                while (current <= range.end) {
-                  // --- 2. CALCULATE WEEK PARITY ---
-                  // Get difference in weeks from the Semester Start
-                  const diffTime = Math.abs(current - semesterStart);
-                  const diffWeeks = Math.floor(
-                    diffTime / (1000 * 60 * 60 * 24 * 7),
-                  );
-
-                  // Week 1 (diff=0) is Odd. Week 2 (diff=1) is Even.
-                  const isOddWeek = diffWeeks % 2 === 0;
-
-                  // --- 3. FILTER BASED ON WEEK TYPE ---
-                  let shouldShow = true;
-                  if (item.week_type === "odd" && !isOddWeek)
-                    shouldShow = false;
-                  if (item.week_type === "even" && isOddWeek)
-                    shouldShow = false;
-
-                  if (shouldShow) {
-                    const [sH, sM] = item.start_time.split(":");
-                    const [eH, eM] = item.end_time.split(":");
-
-                    const start = new Date(current);
-                    start.setHours(sH, sM, 0);
-                    const end = new Date(current);
-                    end.setHours(eH, eM, 0);
-
-                    allEvents.push({
-                      id: item.id,
-                      title: `${item.course_name} (${item.location})`,
-                      start,
-                      end,
-                      isSpecial: false,
-                      source: "schedule",
-                      resource: item,
-                    });
-                  }
-
-                  // Next week
-                  current.setDate(current.getDate() + 7);
-                }
-              });
-            }
+                current.setDate(current.getDate() + 7);
+              }
+            });
           }
-        });
-      }
+        }
+      });
+    }
 
-      // TYPE C: DEADLINES
-      if (Array.isArray(deadlineData)) {
-        deadlineData.forEach((item) => {
-          if (!item || !item.due_date) return;
-          const due = new Date(item.due_date);
+    // C: DEADLINES
+    if (Array.isArray(deadlineData)) {
+      deadlineData.forEach((item) => {
+        if (!item || !item.due_date) return;
+        const due = new Date(item.due_date);
+        if (!isNaN(due)) {
           allEvents.push({
             id: item.id,
-            title: `⚠️ DUE: ${item.title} (${item.course_name})`,
+            title: `⚠️ DUE: ${item.title}`,
             start: due,
             end: new Date(due.getTime() + 60 * 60 * 1000),
             isSpecial: true,
             source: "assignment",
-            resource: item,
           });
-        });
-      }
+        }
+      });
+    }
 
-      return allEvents.filter((e) => e && e.title && e.start && e.end);
-    },
-    [getAcademicRanges],
-  );
+    return allEvents;
+  };
 
-  // --- 3. API ACTIONS ---
   const fetchAllEvents = useCallback(async () => {
     if (!user) return;
     try {
+      // FIX: Removed "&weekType=all" so backend returns EVERYTHING (Odd, Even, All)
+      // This allows the frontend loop to filter them correctly.
       const [resSchedule, resDeadlines] = await Promise.all([
         fetch(
-          `${API_BASE_URL}/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=everything`,
+          `${API_BASE_URL}/api/schedule?groupName=${encodeURIComponent(user.groupName)}`,
         ),
         fetch(
           `${API_BASE_URL}/api/deadlines?groupName=${encodeURIComponent(user.groupName)}`,
@@ -193,19 +194,21 @@ const Calendar = () => {
       const scheduleData = await resSchedule.json();
       const deadlineData = await resDeadlines.json();
 
-      const combinedEvents = processData(scheduleData, deadlineData);
+      const combinedEvents = processData(
+        Array.isArray(scheduleData) ? scheduleData : [],
+        Array.isArray(deadlineData) ? deadlineData : [],
+      );
       setEvents(combinedEvents);
     } catch (err) {
       console.error("Calendar fetch error:", err);
       setEvents([]);
     }
-  }, [user, processData]); // processData is now a stable dependency
+  }, [user]);
 
   useEffect(() => {
     fetchAllEvents();
   }, [fetchAllEvents]);
 
-  // Handle Event Click
   const handleSelectEvent = (event) => {
     if (user?.role === "ADMIN") {
       setSelectedEvent(event);
@@ -213,11 +216,8 @@ const Calendar = () => {
     }
   };
 
-  // Handle Delete Confirmation
   const handleDelete = async () => {
     if (!selectedEvent) return;
-
-    // Determine endpoint based on source
     const endpoint =
       selectedEvent.source === "assignment"
         ? `${API_BASE_URL}/api/assignments/${selectedEvent.id}`
@@ -239,7 +239,9 @@ const Calendar = () => {
 
   const eventStyleGetter = (event) => ({
     style: {
-      backgroundColor: event.isSpecial ? "var(--accent-color)" : "#0d6efd",
+      backgroundColor: event.isSpecial
+        ? "var(--accent-color, #e74c3c)"
+        : "#0d6efd",
       borderRadius: "5px",
       opacity: 0.9,
       color: "white",
@@ -285,11 +287,10 @@ const Calendar = () => {
           min={new Date(0, 0, 0, 8, 0, 0)}
           max={new Date(0, 0, 0, 20, 0, 0)}
           eventPropGetter={eventStyleGetter}
-          onSelectEvent={handleSelectEvent} // Enables clicking events
+          onSelectEvent={handleSelectEvent}
         />
       </div>
 
-      {/* DELETE CONFIRMATION MODAL */}
       <Modal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -315,7 +316,9 @@ const Calendar = () => {
             <strong>{selectedEvent?.title}</strong>?
           </p>
           <p className="text-danger small">
-            Note: If this is a weekly class, all occurrences will be removed.
+            {selectedEvent?.source === "schedule" && !selectedEvent?.isSpecial
+              ? "This will delete ALL weekly occurrences of this class."
+              : "This will delete this specific event."}
           </p>
         </Modal.Body>
         <Modal.Footer
@@ -333,7 +336,6 @@ const Calendar = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ADD EVENT MODAL */}
       {user?.role === "ADMIN" && (
         <AddEventModal
           show={showAddModal}

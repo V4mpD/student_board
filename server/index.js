@@ -5,7 +5,7 @@ const { Pool } = require("pg");
 const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
-const path = require("path"); // <--- ADDED THIS MISSING IMPORT
+const path = require("path");
 
 const app = express();
 const PORT = process.env.PORT || 5000;

@@ -7,22 +7,43 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("weekly");
 
+  // Helper to calculate Day Name from a Date string
+  const getDayName = (dateStr) => {
+    if (!dateStr) return "Monday";
+    const date = new Date(dateStr);
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    return days[date.getDay()];
+  };
+
   const [formData, setFormData] = useState({
     course_name: "",
     location: "",
     day_of_week: "Monday",
     start_time: "08:00",
     end_time: "10:00",
-    week_type: "all",
+    week_type: "everything",
     specific_date: "",
     target_group: user?.groupName || "",
     title: "",
     description: "",
-    semester: 1, // <--- Add this (default 1)
   });
+
+  // Local state to handle the UI selection of "Once" (which maps to 'all' in DB)
+  const [uiFrequency, setUiFrequency] = useState("all");
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === "week_type") {
+      setUiFrequency(e.target.value);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -30,69 +51,51 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
 
     try {
       let endpoint = `${API_BASE_URL}/api/schedule`;
+
+      // Base Payload
       let payload = {
-        ...formData,
+        course_name: formData.course_name,
+        location: formData.location,
+        start_time: formData.start_time,
+        end_time: formData.end_time,
+        target_group: formData.target_group,
         created_by: user.id,
-        semester: parseInt(formData.semester),
       };
 
-      // LOGIC FOR WEEKLY / ONCE
-      if (activeTab === "weekly") {
-        if (formData.week_type === "once") {
-          // "Once" needs to act like a One-Time Event
-          if (!formData.specific_date) {
-            alert("Please select a date for the one-time class.");
-            return;
-          }
-          const dateObj = new Date(formData.specific_date + "T12:00:00");
-          const days = [
-            "Sunday",
-            "Monday",
-            "Tuesday",
-            "Wednesday",
-            "Thursday",
-            "Friday",
-            "Saturday",
-          ];
+      // === LOGIC BRANCHING ===
 
-          payload.day_of_week = days[dateObj.getDay()]; // Auto-calc Day
-          payload.week_type = "all"; // Satisfy DB constraint (all/odd/even)
-          // specific_date is already in payload
-        } else {
-          // Normal Recurring
-          payload.specific_date = null;
-        }
-      }
-      // LOGIC FOR ONE-TIME (Exam/Event)
-      else if (activeTab === "one-time") {
-        const dateObj = new Date(formData.specific_date + "T12:00:00");
-        const days = [
-          "Sunday",
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-        ];
-        payload.day_of_week = days[dateObj.getDay()];
-
-        // FIX 2: FORCE RESET week_type
-        // This ignores whatever "odd/even" selection might be lingering in formData
-        payload.week_type = "all";
-      }
-      // LOGIC FOR DEADLINE
-      else if (activeTab === "deadline") {
+      if (activeTab === "deadline") {
         endpoint = `${API_BASE_URL}/api/assignments`;
         payload = {
           course_name: formData.course_name,
           title: formData.title,
           description: formData.description,
-          due_date: `${formData.specific_date} ${formData.start_time}:00`,
+          // Use 'T' separator for Postgres TIMESTAMP compatibility
+          due_date: `${formData.specific_date}T${formData.start_time}:00`,
           target_group: formData.target_group,
           created_by: user.id,
         };
+      } else {
+        // IT IS A SCHEDULE EVENT (Weekly or One-Time)
+
+        if (activeTab === "one-time" || uiFrequency === "all") {
+          // === TYPE: ONE TIME EVENT ===
+          if (!formData.specific_date) {
+            alert("Please select a date.");
+            return;
+          }
+          payload.week_type = "all";
+          payload.specific_date = formData.specific_date;
+          payload.day_of_week = getDayName(formData.specific_date);
+        } else {
+          // === TYPE: RECURRING WEEKLY ===
+          payload.week_type = uiFrequency;
+          payload.specific_date = null;
+          payload.day_of_week = formData.day_of_week;
+        }
       }
+
+      console.log("Submitting Payload:", payload); // Debugging
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -103,12 +106,14 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
       if (res.ok) {
         refreshCalendar();
         handleClose();
+        // Reset fields
         setFormData((prev) => ({
           ...prev,
           title: "",
           description: "",
           specific_date: "",
-          week_type: "all", // Reset this so it doesn't stick
+          course_name: "",
+          location: "",
         }));
       } else {
         const errData = await res.json();
@@ -226,7 +231,7 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
                   value={formData.day_of_week}
                   onChange={handleChange}
                   className="chat-input"
-                  disabled={formData.week_type === "once"}
+                  disabled={uiFrequency === "once"}
                 >
                   {[
                     "Monday",
@@ -247,40 +252,23 @@ const AddEventModal = ({ show, handleClose, refreshCalendar }) => {
                 <Form.Label>Frequency</Form.Label>
                 <Form.Select
                   name="week_type"
-                  value={formData.week_type}
+                  value={uiFrequency}
                   onChange={handleChange}
                   className="chat-input"
                 >
                   <option value="all">Every Week</option>
                   <option value="odd">Odd Weeks</option>
                   <option value="even">Even Weeks</option>
-                  {/* NEW OPTION */}
                   <option value="once">Once (Specific Date)</option>
                 </Form.Select>
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Semester</label>
-                <select
-                  className="form-select"
-                  value={formData.semester}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      semester: parseInt(e.target.value),
-                    })
-                  }
-                >
-                  <option value={1}>Semester 1 (Fall)</option>
-                  <option value={2}>Semester 2 (Spring)</option>
-                </select>
               </div>
             </div>
           )}
 
-          {/* SHOW DATE PICKER IF: One-Time Tab OR Weekly Tab + "Once" selected */}
+          {/* Date Picker shows for: One-Time, Deadline, OR Weekly set to 'once' */}
           {(activeTab === "one-time" ||
             activeTab === "deadline" ||
-            (activeTab === "weekly" && formData.week_type === "once")) && (
+            (activeTab === "weekly" && uiFrequency === "once")) && (
             <Form.Group className="mb-3">
               <Form.Label>
                 {activeTab === "deadline" ? "Due Date" : "Event Date"}
