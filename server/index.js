@@ -6,9 +6,12 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 const path = require("path");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcrypt");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const JWT_SECRET = process.env.JWT_SECRET || "fallback_key_uwu";
 
 app.use(
   cors({
@@ -39,12 +42,11 @@ const pool = new Pool({
   connectionTimeoutMillis: 10000,
 });
 
-// Pool Query in loc de pool.connect ca tot primeam erori :)))
 pool
   .query("SELECT NOW()")
-  .then(() => console.log("Connected to PostgreSQL successfully"))
+  .then(() => console.log("Connected to PostgreSQL database"))
   .catch((err) => {
-    console.error("PostgreSQL connection error:", err);
+    console.error("Database connection error:", err);
     process.exit(1);
   });
 
@@ -52,6 +54,23 @@ pool.on("error", (err, client) => {
   console.error("Unexpected error on idle client", err);
   process.exit(-1);
 });
+
+// ----------------------------------------------------
+// AUTHENTICATION SETUP
+// ----------------------------------------------------
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) return res.sendStatus(401); // Unauthorized
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403); // Forbidden
+    req.user = user;
+    next();
+  });
+};
 
 // ----------------------------------------------------
 // API ROUTES
@@ -68,6 +87,10 @@ app.post("/api/register", async (req, res) => {
       [faculty, groupName],
     );
     const isFirstUser = parseInt(checkGroup.rows[0].count) === 0;
+
+    // Hash the password before storing
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
 
     const insertQuery = `
             INSERT INTO users (username, password_hash, full_name, faculty, study_year, series, group_name, is_group_admin) 
@@ -86,11 +109,26 @@ app.post("/api/register", async (req, res) => {
       isFirstUser,
     ]);
 
+    // Generate JWT Token
+    const token = jwt.sign(
+      {
+        id: result.rows[0].id,
+        username: username,
+        role: isFirstUser ? "ADMIN" : "STUDENT",
+        groupName: groupName,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" },
+    );
+
     res.json({
       success: true,
-      userId: result.rows[0].id,
-      role: isFirstUser ? "ADMIN" : "STUDENT",
-      groupName: groupName,
+      token: token,
+      user: {
+        username: username,
+        role: isFirstUser ? "ADMIN" : "STUDENT",
+        groupName: groupName,
+      },
     });
   } catch (err) {
     if (err.code === "23505") {
@@ -105,29 +143,60 @@ app.post("/api/register", async (req, res) => {
 app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
   try {
-    const result = await pool.query(
-      "SELECT * FROM users WHERE username = $1 AND password_hash = $2",
-      [username, password],
-    );
+    const result = await pool.query("SELECT * FROM users WHERE username = $1", [
+      username,
+    ]);
 
     const user = result.rows[0];
 
-    if (user) {
-      res.json({
-        success: true,
-        user: {
-          id: user.id,
-          username: user.username,
-          role: user.is_group_admin ? "ADMIN" : "STUDENT",
-          faculty: user.faculty,
-          groupName: user.group_name,
-          year: user.study_year,
-          series: user.series,
-        },
-      });
-    } else {
-      res.status(401).json({ error: "Invalid credentials" });
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
     }
+
+    // Secure password comparison
+    let isMatch = await bcrypt.compare(password, user.password_hash);
+
+    // If not matched, check for legacy plain text password and migrate
+    if (!isMatch && password === user.password_hash) {
+      console.log(`Migrating user ${username} to hashed password.`);
+      const salt = await bcrypt.genSalt(10);
+      const hashedPassword = await bcrypt.hash(password, salt);
+      await pool.query("UPDATE users SET password_hash = $1 WHERE id = $2", [
+        hashedPassword,
+        user.id,
+      ]);
+      isMatch = true;
+    }
+
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
+
+    // Generate JWT Token
+    const token = jwt.sign(
+      {
+        id: user.id,
+        username: user.username,
+        role: user.is_group_admin ? "ADMIN" : "STUDENT",
+        groupName: user.group_name,
+      },
+      JWT_SECRET,
+      { expiresIn: "30d" },
+    );
+
+    res.json({
+      success: true,
+      token: token,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.is_group_admin ? "ADMIN" : "STUDENT",
+        groupName: user.group_name,
+        faculty: user.faculty,
+        year: user.study_year,
+        series: user.series,
+      },
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
