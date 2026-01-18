@@ -43,7 +43,17 @@ const Dashboard = () => {
       interval = setInterval(() => setTimerLeft((t) => t - 1), 1000);
     } else if (timerLeft === 0) {
       setIsTimerActive(false);
-      alert("Focus session complete! Take a break.");
+
+      // Audio Alert
+      const audio = new Audio("/focus-notification-audio.mp3");
+      audio
+        .play()
+        .catch((e) =>
+          console.log(
+            "Audio play failed, most probably due to browser restrictions.",
+            e,
+          ),
+        );
     }
     return () => clearInterval(interval);
   }, [isTimerActive, timerLeft]);
@@ -174,7 +184,7 @@ const Dashboard = () => {
                 className="display-4 fw-bold mb-3"
                 style={{ fontFamily: "monospace" }}
               >
-                {formatTime(timerLeft)}
+                {timerLeft === 0 ? "Time's Up!" : formatTime(timerLeft)}
               </div>
               <div className="d-flex justify-content-center gap-2">
                 <button
@@ -195,7 +205,7 @@ const Dashboard = () => {
                   className="btn btn-outline-light rounded-circle"
                   onClick={() => {
                     setIsTimerActive(false);
-                    setTimerLeft(25 * 60);
+                    setTimerLeft(1 * 10);
                   }}
                 >
                   <FaRedo />
