@@ -12,6 +12,7 @@ import { useAuth } from "../context/AuthContext";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import { Modal, Button } from "react-bootstrap";
 import AddEventModal from "../components/AddEventModal";
+import EventDetailsModal from "../components/EventDetailsModal"; // <--- IMPORT THIS
 import API_BASE_URL from "../apiConfig";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
@@ -33,26 +34,22 @@ const Calendar = () => {
   // Modal States
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showDetailsModal, setShowDetailsModal] = useState(false); // <--- NEW STATE
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   // --- 1. ACADEMIC CALENDAR CONFIGURATION ---
   const getAcademicRanges = () => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    // Calculate "Start Year" (If we are in Jan 2026, academic year started Sep 2025)
     const startYear = now.getMonth() < 8 ? currentYear - 1 : currentYear;
     const nextYear = startYear + 1;
-
-    // DEFINITION: Week 1 starts on Sept 29th.
     const academicStart = new Date(startYear, 8, 29);
 
     return {
       academicStart,
       ranges: [
-        { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) }, // Sem 1
-        { start: new Date(nextYear, 0, 12), end: new Date(nextYear, 0, 25) }, // Sem 1 (continued)
-        { start: new Date(nextYear, 1, 23), end: new Date(nextYear, 3, 5) }, // Sem 2
-        { start: new Date(nextYear, 3, 15), end: new Date(nextYear, 5, 7) }, // Sem 2 (continued)
+        { start: new Date(startYear, 8, 29), end: new Date(startYear, 11, 21) },
+        { start: new Date(nextYear, 0, 12), end: new Date(nextYear, 0, 25) },
       ],
     };
   };
@@ -62,7 +59,6 @@ const Calendar = () => {
     const allEvents = [];
     const { academicStart, ranges } = getAcademicRanges();
 
-    // Helper: Safe Date Parsing (Respects Timezones)
     const mergeDateAndTime = (dateIsoString, timeStr) => {
       if (!dateIsoString || !timeStr) return null;
       const dateObj = new Date(dateIsoString);
@@ -77,7 +73,6 @@ const Calendar = () => {
       scheduleData.forEach((item) => {
         if (!item) return;
 
-        // === A: SPECIFIC DATE EVENTS (One-Time / Exams) ===
         if (item.specific_date) {
           const start = mergeDateAndTime(item.specific_date, item.start_time);
           const end = mergeDateAndTime(item.specific_date, item.end_time);
@@ -92,9 +87,7 @@ const Calendar = () => {
               source: "schedule",
             });
           }
-        }
-        // === B: RECURRING WEEKLY (All / Odd / Even) ===
-        else if (item.day_of_week && item.start_time && item.end_time) {
+        } else if (item.day_of_week && item.start_time && item.end_time) {
           const dayMap = {
             Sunday: 0,
             Monday: 1,
@@ -109,14 +102,11 @@ const Calendar = () => {
           if (targetDay !== undefined) {
             ranges.forEach((range) => {
               let current = new Date(range.start);
-              // Advance to first occurrence of the day
               while (current.getDay() !== targetDay) {
                 current.setDate(current.getDate() + 1);
               }
 
-              // Loop through weeks in range
               while (current <= range.end) {
-                // Parity Logic
                 const weekDiff = differenceInCalendarWeeks(
                   current,
                   academicStart,
@@ -130,7 +120,6 @@ const Calendar = () => {
                   shouldRender = false;
                 if (item.week_type === "even" && isOddWeek)
                   shouldRender = false;
-                // 'once' items are handled by specific_date logic above, so ignore them here
                 if (item.week_type === "once") shouldRender = false;
 
                 if (shouldRender) {
@@ -159,7 +148,6 @@ const Calendar = () => {
       });
     }
 
-    // === C: DEADLINES ===
     if (Array.isArray(deadlineData)) {
       deadlineData.forEach((item) => {
         if (!item || !item.due_date) return;
@@ -184,7 +172,6 @@ const Calendar = () => {
   const fetchAllEvents = useCallback(async () => {
     if (!user) return;
     try {
-      // FIX: "weekType=everything" unlocks the backend filter!
       const [resSchedule, resDeadlines] = await Promise.all([
         fetch(
           `${API_BASE_URL}/api/schedule?groupName=${encodeURIComponent(user.groupName)}&weekType=everything`,
@@ -212,14 +199,23 @@ const Calendar = () => {
     fetchAllEvents();
   }, [fetchAllEvents]);
 
-  // --- 4. DELETE LOGIC ---
+  // --- 4. HANDLE EVENT CLICKS ---
+
+  // Step A: User clicks an event -> Show Details
   const handleSelectEvent = (event) => {
-    if (user?.role === "ADMIN") {
-      setSelectedEvent(event);
-      setShowDeleteModal(true);
-    }
+    setSelectedEvent(event);
+    setShowDetailsModal(true); // <--- OPEN DETAILS FIRST
   };
 
+  // Step B: User (Admin) clicks Delete inside Details -> Show Delete Confirmation
+  const initiateDelete = (event) => {
+    setShowDetailsModal(false);
+    // We already set 'selectedEvent' in handleSelectEvent, but let's be safe
+    setSelectedEvent(event);
+    setShowDeleteModal(true);
+  };
+
+  // Step C: User confirms Delete -> Actually Delete
   const handleDelete = async () => {
     if (!selectedEvent) return;
     const endpoint =
@@ -295,7 +291,17 @@ const Calendar = () => {
         />
       </div>
 
-      {/* DELETE MODAL */}
+      {/* --- MODALS --- */}
+
+      {/* 1. DETAILS MODAL (Pop-up) */}
+      <EventDetailsModal
+        show={showDetailsModal}
+        handleClose={() => setShowDetailsModal(false)}
+        event={selectedEvent}
+        onDelete={initiateDelete} // Pass the "Admin wants to delete" handler
+      />
+
+      {/* 2. DELETE CONFIRMATION MODAL */}
       <Modal
         show={showDeleteModal}
         onHide={() => setShowDeleteModal(false)}
@@ -341,7 +347,7 @@ const Calendar = () => {
         </Modal.Footer>
       </Modal>
 
-      {/* ADD EVENT MODAL */}
+      {/* 3. ADD EVENT MODAL */}
       {user?.role === "ADMIN" && (
         <AddEventModal
           show={showAddModal}
