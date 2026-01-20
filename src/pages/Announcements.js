@@ -80,7 +80,9 @@ const Announcements = () => {
                 </div>
                 <div className="card-body">
                   <h5 className="card-title">{post.title}</h5>
-                  <p className="card-text">{post.content}</p>
+                  <p className="card-text" style={{ whiteSpace: "pre-wrap" }}>
+                    {post.content}
+                  </p>
                   {post.priority === "High" && (
                     <span className="badge bg-danger">Important</span>
                   )}

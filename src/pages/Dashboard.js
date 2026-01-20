@@ -101,13 +101,17 @@ const Dashboard = () => {
         ];
         const targetDayName = dayNames[targetDate.getDay()];
 
-        const filteredClasses = scheduleData.filter(
-          (item) =>
-            item.day_of_week === targetDayName ||
-            (item.specific_date &&
+        const filteredClasses = scheduleData.filter((item) => {
+          // Check for specific date match
+          if (item.specific_date) {
+            return (
               new Date(item.specific_date).toDateString() ===
-                targetDate.toDateString()),
-        );
+              targetDate.toDateString()
+            );
+          }
+          // Regular weekly schedule match
+          return item.day_of_week === targetDayName;
+        });
 
         filteredClasses.sort((a, b) =>
           a.start_time.localeCompare(b.start_time),
@@ -253,7 +257,7 @@ const Dashboard = () => {
                         </small>
                       </div>
                       <span className="badge bg-primary rounded-pill">
-                        Class
+                        {item.specific_date ? "Exam" : "Class"}
                       </span>
                     </div>
                   ))}
@@ -284,7 +288,7 @@ const Dashboard = () => {
                 </p>
               ) : (
                 latestNews.map((news) => (
-                  <div key={news.id} className="card mb-3 border bg-light">
+                  <div key={news.id} className="card mb-3 border">
                     <div className="card-body p-3">
                       <h6 className="card-title fw-bold mb-1">{news.title}</h6>
                       <p className="card-text small text-muted text-truncate">

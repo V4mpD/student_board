@@ -100,7 +100,7 @@ app.post("/api/register", async (req, res) => {
 
     const result = await pool.query(insertQuery, [
       username,
-      password,
+      passwordHash,
       fullName,
       faculty,
       year,
