@@ -19,7 +19,15 @@ const Register = () => {
   });
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // Validation for series and groupName to allow only numbers
+    if (name === "series" || name === "groupName") {
+      if (value !== "" && !/^\d+$/.test(value)) {
+        return; // Ignore non-numeric input
+      }
+    }
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSubmit = async (e) => {

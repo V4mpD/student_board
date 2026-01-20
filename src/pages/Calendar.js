@@ -151,13 +151,32 @@ const Calendar = () => {
     if (Array.isArray(deadlineData)) {
       deadlineData.forEach((item) => {
         if (!item || !item.due_date) return;
-        const due = new Date(item.due_date);
+
+        // FIX: Manual parsing to prevent Timezone Shift (UTC -> Local)
+        // We expect format like "2026-01-20T13:30:00..."
+        let due;
+        try {
+          // Split Date (YYYY-MM-DD) and Time (HH:MM:SS)
+          const [datePart, timePart] = item.due_date.split("T");
+          const [y, m, d] = datePart.split(/[-/]/).map(Number);
+
+          // Handle time part (remove Z or offsets if present for pure local display)
+          const cleanTime = timePart.split(/[Z+.-]/)[0];
+          const [h, min] = cleanTime.split(":").map(Number);
+
+          // Create local date: Month is 0-indexed
+          due = new Date(y, m - 1, d, h, min, 0);
+        } catch (e) {
+          // Fallback if format is unexpected
+          due = new Date(item.due_date);
+        }
+
         if (!isNaN(due)) {
           allEvents.push({
             id: item.id,
             title: `⚠️ DUE: ${item.title}`,
             start: due,
-            end: new Date(due.getTime() + 60 * 60 * 1000),
+            end: new Date(due.getTime() + 60 * 60 * 1000), // 1 hour duration
             isSpecial: true,
             source: "assignment",
           });
